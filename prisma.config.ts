@@ -9,6 +9,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Migrate uses the direct (session-mode) connection; the pooled URL is for runtime.
+    url: process.env["DIRECT_URL"],
   },
 });

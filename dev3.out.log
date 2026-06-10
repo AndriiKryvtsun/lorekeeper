@@ -1,0 +1,14 @@
+
+> lorekeeper@0.1.0 dev
+> next dev --port 3011
+
+▲ Next.js 16.2.7 (Turbopack)
+- Local:         http://localhost:3011
+- Network:       http://192.168.0.100:3011
+- Environments: .env
+✓ Ready in 339ms
+
+ GET /login 200 in 1469ms (next.js: 1348ms, proxy.ts: 2ms, application-code: 118ms)
+  Reload env: .env
+✓ Compiled in 27ms
+  Reload env: .env

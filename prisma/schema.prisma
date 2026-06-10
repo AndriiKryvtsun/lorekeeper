@@ -11,3 +11,82 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Campaign {
+  id          String   @id @default(cuid())
+  title       String
+  system      String
+  description String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+
+  sessions   Session[]
+  npcs       NPC[]
+  locations  Location[]
+  items      Item[]
+  characters Character[]
+
+  @@index([ownerId])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  title      String
+  date       DateTime
+  summary    String?
+  notes      String?
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model NPC {
+  id          String   @id @default(cuid())
+  name        String
+  role        String?
+  description String?
+  status      String
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  ownedItems Item[]
+
+  @@index([campaignId])
+}
+
+model Location {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ownerNpcId  String?
+  ownerNpc    NPC?     @relation(fields: [ownerNpcId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([ownerNpcId])
+}
+
+model Character {
+  id         String   @id @default(cuid())
+  name       String
+  playerName String
+  class      String
+  level      Int
+  notes      String?
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
