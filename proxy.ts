@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { env } from "~/env";
+
 // Next.js 16 "Proxy" convention (formerly Middleware). Refreshes the Supabase session
 // and protects every route except the public login/auth-callback routes.
 
@@ -21,14 +23,10 @@ function hardenedCookieOptions(options: CookieOptions): CookieOptions {
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    // Misconfiguration: fail closed for protected routes.
-    return response;
-  }
-
-  const supabase = createServerClient(url, anonKey, {
+  const supabase = createServerClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
     cookies: {
       getAll() {
         return request.cookies.getAll();

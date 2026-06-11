@@ -2,156 +2,145 @@
 
 ## Purpose
 
-Defines the HTTP CRUD API for campaigns and their NPCs, implemented as Next.js
-App Router route handlers with Zod-validated, untrusted input.
+Defines the CRUD API for campaigns and their NPCs, implemented as tRPC
+procedures (the `campaignRouter` and `npcRouter`) with Zod-validated, untrusted
+input. Procedures are scoped to the current user from `ctx.user.id` and surface
+errors as tRPC codes (`UNAUTHORIZED`, `NOT_FOUND`, `BAD_REQUEST`).
 
 ## Requirements
 
-### Requirement: Endpoints are Next.js App Router route handlers
-Every CRUD endpoint SHALL be implemented as a Next.js App Router route handler under
-`app/api/`, exporting the relevant HTTP method functions. There MUST be no separate
-server process. The routes map to files as follows:
-- `app/api/campaigns/route.ts` → `GET` (list), `POST` (create)
-- `app/api/campaigns/[campaignId]/route.ts` → `GET`, `PATCH`, `DELETE`
-- `app/api/campaigns/[campaignId]/npcs/route.ts` → `GET` (list), `POST` (create)
-
-The campaign-id path segment MUST use a single slug name (`[campaignId]`) across these
-routes, since Next.js requires one slug name per dynamic path position.
-
-#### Scenario: Endpoints are served by the Next.js app
-- **WHEN** the Next.js app is running and a client requests any campaign or NPC endpoint
-- **THEN** the request is handled by the corresponding route handler under `app/api/` with no additional server
-
 ### Requirement: Campaign endpoints require authentication
-Every campaign and NPC endpoint SHALL require an authenticated user. A request without a
-valid session MUST be rejected (`401`) or redirected to login and MUST NOT read or write
-any data.
+Every campaign and NPC procedure SHALL be a tRPC `protectedProcedure`. A call without a
+valid session MUST be rejected with a tRPC `UNAUTHORIZED` error before the resolver runs,
+and MUST NOT read or write any data.
 
-#### Scenario: Anonymous request is rejected
-- **WHEN** an unauthenticated client calls any campaign or NPC endpoint
-- **THEN** the request is rejected (401) or redirected to login and no data is read or written
+#### Scenario: Anonymous call is rejected
+- **WHEN** an unauthenticated caller invokes any campaign or NPC procedure
+- **THEN** the call fails with `UNAUTHORIZED` and no data is read or written
 
 ### Requirement: Authorization is enforced server-side with owner from session
-The system SHALL enforce authorization server-side in every route handler and server
-action. The owning user's id SHALL be taken only from the authenticated session, never
-from the request body or query. Any `ownerId` supplied in input MUST be ignored. Access
-to a campaign the current user does not own MUST return `404` (not `403`), so existence
-is not revealed.
+The system SHALL enforce authorization server-side in every procedure resolver. The
+owning user's id SHALL be taken only from `ctx.user.id`, never from procedure input. Any
+`ownerId` present in input MUST be ignored. Access to a campaign the current user does
+not own MUST fail with a tRPC `NOT_FOUND` error (not `FORBIDDEN`), so existence is not
+revealed.
 
-#### Scenario: ownerId in the body is ignored
-- **WHEN** a client includes an `ownerId` in a create or update body
-- **THEN** the stored/owning id is the session user's id and the supplied value is ignored
+#### Scenario: ownerId in input is ignored
+- **WHEN** a caller includes an `ownerId` in a create or update input
+- **THEN** the owning id is `ctx.user.id` and the supplied value is ignored
 
-#### Scenario: Cross-user access returns 404
-- **WHEN** an authenticated user references a campaign owned by another user
-- **THEN** the response status is 404 and no data is read or written
+#### Scenario: Cross-user access yields NOT_FOUND
+- **WHEN** an authenticated caller references a campaign owned by another user
+- **THEN** the call fails with `NOT_FOUND` and no data is read or written
 
 ### Requirement: List campaigns
-The system SHALL expose `GET /api/campaigns` returning only the campaigns owned by the
-authenticated user, as JSON.
+The system SHALL expose a `campaignRouter.list` query (a `protectedProcedure`) returning
+only the campaigns owned by `ctx.user.id`.
 
 #### Scenario: Only the user's campaigns are returned
-- **WHEN** an authenticated client sends `GET /api/campaigns`
-- **THEN** the response status is 200 and the body contains only campaigns whose `ownerId` is the current user
+- **WHEN** an authenticated caller invokes `campaignRouter.list`
+- **THEN** it returns only campaigns whose `ownerId` equals `ctx.user.id`
 
 ### Requirement: Create campaign with validated input
-The system SHALL expose `POST /api/campaigns` that validates the request body with Zod
-before persisting. A valid body MUST include a non-empty `title` and a non-empty
-`system`; `description` is optional. The created campaign's `ownerId` MUST be the
-authenticated user's id, taken from the session and never from the body. Invalid input
-MUST be rejected without a database write.
+The system SHALL expose a `campaignRouter.create` mutation (a `protectedProcedure`) whose
+input is validated by the shared `createCampaignSchema` from `lib/validation`. The created
+campaign's `ownerId` MUST be `ctx.user.id`, never taken from input. Invalid input MUST be
+rejected with a tRPC `BAD_REQUEST` error and no database write.
 
 #### Scenario: Valid campaign is created for the current user
-- **WHEN** an authenticated client sends `POST /api/campaigns` with a non-empty `title` and `system`
-- **THEN** the response status is 201 and the created campaign has `ownerId` equal to the current user
+- **WHEN** an authenticated caller invokes `campaignRouter.create` with a valid `title` and `system`
+- **THEN** the created campaign is returned with `ownerId` equal to `ctx.user.id`
 
-#### Scenario: Invalid campaign is rejected
-- **WHEN** a client sends `POST /api/campaigns` with a missing or empty `title`
-- **THEN** the response status is 400, the body describes the validation error, and no row is created
+#### Scenario: Invalid input is rejected
+- **WHEN** a caller invokes `campaignRouter.create` with a missing or empty `title`
+- **THEN** the call fails with `BAD_REQUEST` and no row is created
 
 ### Requirement: Read a single campaign
-The system SHALL expose `GET /api/campaigns/{id}` returning the campaign only when it
-exists and is owned by the authenticated user; otherwise it MUST return 404.
+The system SHALL expose a `campaignRouter.byId` query (a `protectedProcedure`) taking an
+`id` input and returning the campaign only when it exists and is owned by `ctx.user.id`;
+otherwise it MUST fail with `NOT_FOUND`.
 
 #### Scenario: Owned campaign is returned
-- **WHEN** an authenticated client sends `GET /api/campaigns/{id}` for a campaign they own
-- **THEN** the response status is 200 and the body is that campaign
+- **WHEN** an authenticated caller invokes `campaignRouter.byId` for a campaign they own
+- **THEN** it returns that campaign
 
-#### Scenario: Missing campaign yields 404
-- **WHEN** a client sends `GET /api/campaigns/{id}` for an id that does not exist
-- **THEN** the response status is 404
+#### Scenario: Missing campaign yields NOT_FOUND
+- **WHEN** a caller invokes `campaignRouter.byId` for an id that does not exist
+- **THEN** the call fails with `NOT_FOUND`
 
-#### Scenario: Another user's campaign yields 404
-- **WHEN** an authenticated client sends `GET /api/campaigns/{id}` for a campaign owned by a different user
-- **THEN** the response status is 404
+#### Scenario: Another user's campaign yields NOT_FOUND
+- **WHEN** an authenticated caller invokes `campaignRouter.byId` for a campaign owned by a different user
+- **THEN** the call fails with `NOT_FOUND`
 
 ### Requirement: Update a campaign with validated input
-The system SHALL expose `PATCH /api/campaigns/{id}` that validates a partial body with
-Zod and updates the campaign only when it exists and is owned by the authenticated user;
-otherwise it MUST return 404.
+The system SHALL expose a `campaignRouter.update` mutation (a `protectedProcedure`) whose
+input is validated by the shared `updateCampaignSchema` plus the target `id`. It updates
+the campaign only when it exists and is owned by `ctx.user.id`; otherwise it MUST fail
+with `NOT_FOUND`. Invalid input MUST fail with `BAD_REQUEST` and no update.
 
 #### Scenario: Owned campaign is updated
-- **WHEN** an authenticated client sends `PATCH /api/campaigns/{id}` for a campaign they own with a valid partial body
-- **THEN** the response status is 200 and the body reflects the updated fields
+- **WHEN** an authenticated caller invokes `campaignRouter.update` for a campaign they own with valid fields
+- **THEN** the updated campaign is returned
 
 #### Scenario: Invalid update is rejected
-- **WHEN** a client sends `PATCH /api/campaigns/{id}` with an invalid field value
-- **THEN** the response status is 400 and no update occurs
+- **WHEN** a caller invokes `campaignRouter.update` with an invalid field value
+- **THEN** the call fails with `BAD_REQUEST` and no update occurs
 
-#### Scenario: Updating another user's campaign yields 404
-- **WHEN** an authenticated client sends `PATCH /api/campaigns/{id}` for a campaign owned by a different user
-- **THEN** the response status is 404 and no update occurs
+#### Scenario: Updating another user's campaign yields NOT_FOUND
+- **WHEN** an authenticated caller invokes `campaignRouter.update` for a campaign owned by a different user
+- **THEN** the call fails with `NOT_FOUND` and no update occurs
 
 ### Requirement: Delete a campaign
-The system SHALL expose `DELETE /api/campaigns/{id}` that deletes the campaign and its
-children only when it exists and is owned by the authenticated user; otherwise it MUST
-return 404.
+The system SHALL expose a `campaignRouter.delete` mutation (a `protectedProcedure`) taking
+an `id` input that deletes the campaign and its children only when it exists and is owned
+by `ctx.user.id`; otherwise it MUST fail with `NOT_FOUND`.
 
 #### Scenario: Owned campaign is deleted
-- **WHEN** an authenticated client sends `DELETE /api/campaigns/{id}` for a campaign they own
-- **THEN** the response status is 204 and the campaign and its children no longer exist
+- **WHEN** an authenticated caller invokes `campaignRouter.delete` for a campaign they own
+- **THEN** the campaign and its children no longer exist
 
-#### Scenario: Deleting another user's campaign yields 404
-- **WHEN** an authenticated client sends `DELETE /api/campaigns/{id}` for a campaign owned by a different user
-- **THEN** the response status is 404 and nothing is deleted
+#### Scenario: Deleting another user's campaign yields NOT_FOUND
+- **WHEN** an authenticated caller invokes `campaignRouter.delete` for a campaign owned by a different user
+- **THEN** the call fails with `NOT_FOUND` and nothing is deleted
 
 ### Requirement: List NPCs scoped to a campaign
-The system SHALL expose `GET /api/campaigns/{campaignId}/npcs` returning the NPCs of that
-campaign only when the campaign is owned by the authenticated user; otherwise it MUST
-return 404.
+The system SHALL expose an `npcRouter.listByCampaign` query (a `protectedProcedure`)
+taking a `campaignId` input and returning that campaign's NPCs only when the campaign is
+owned by `ctx.user.id`; otherwise it MUST fail with `NOT_FOUND`.
 
 #### Scenario: Only the owned campaign's NPCs are returned
-- **WHEN** an authenticated client sends `GET /api/campaigns/{campaignId}/npcs` for a campaign they own
-- **THEN** the response status is 200 and the body contains only NPCs whose parent is that campaign
+- **WHEN** an authenticated caller invokes `npcRouter.listByCampaign` for a campaign they own
+- **THEN** it returns only NPCs whose parent is that campaign
 
-#### Scenario: NPCs of another user's campaign yield 404
-- **WHEN** an authenticated client lists NPCs for a campaign owned by a different user
-- **THEN** the response status is 404
+#### Scenario: NPCs of another user's campaign yield NOT_FOUND
+- **WHEN** an authenticated caller invokes `npcRouter.listByCampaign` for a campaign owned by a different user
+- **THEN** the call fails with `NOT_FOUND`
 
 ### Requirement: Create NPC under a campaign with validated input
-The system SHALL expose `POST /api/campaigns/{campaignId}/npcs` that validates the body
-with Zod and creates the NPC as a child of the campaign only when that campaign is owned
-by the authenticated user. A valid body MUST include a non-empty `name`; `role`,
-`description`, and `status` follow the data model. The created NPC's parent MUST be the
-campaign in the path, not a value taken from the body.
+The system SHALL expose an `npcRouter.create` mutation (a `protectedProcedure`) whose
+input is the target `campaignId` plus fields validated by the shared `createNpcSchema`.
+It creates the NPC only when that campaign is owned by `ctx.user.id`; the NPC's parent is
+the input `campaignId`, never an owner taken from input. A missing or unowned campaign
+MUST fail with `NOT_FOUND`; invalid fields MUST fail with `BAD_REQUEST`.
 
 #### Scenario: Valid NPC is created under an owned campaign
-- **WHEN** an authenticated client sends `POST /api/campaigns/{campaignId}/npcs` with a non-empty `name` for a campaign they own
-- **THEN** the response status is 201 and the created NPC references that campaign
+- **WHEN** an authenticated caller invokes `npcRouter.create` with a valid `name` for a campaign they own
+- **THEN** the created NPC is returned referencing that campaign
 
 #### Scenario: Invalid NPC is rejected
-- **WHEN** a client sends `POST /api/campaigns/{campaignId}/npcs` with a missing `name`
-- **THEN** the response status is 400 and no row is created
+- **WHEN** a caller invokes `npcRouter.create` with a missing `name`
+- **THEN** the call fails with `BAD_REQUEST` and no row is created
 
-#### Scenario: NPC under a missing or unowned campaign yields 404
-- **WHEN** a client posts an NPC to a `campaignId` that does not exist or is owned by a different user
-- **THEN** the response status is 404 and no row is created
+#### Scenario: NPC under a missing or unowned campaign yields NOT_FOUND
+- **WHEN** a caller invokes `npcRouter.create` for a `campaignId` that does not exist or is owned by a different user
+- **THEN** the call fails with `NOT_FOUND` and no row is created
 
 ### Requirement: Untrusted input is treated as data
-The system SHALL treat all request input as untrusted data validated at the boundary
-with Zod and MUST NOT interpret any field value as an instruction. API keys and other
-secrets MUST never be returned in responses.
+The system SHALL treat all procedure input as untrusted data validated by Zod at the
+procedure boundary (reusing the `lib/validation` schemas) and MUST NOT interpret any
+field value as an instruction. Unknown fields MUST be stripped and secrets MUST never be
+returned.
 
 #### Scenario: Unexpected fields are ignored
-- **WHEN** a request body includes fields not defined in the Zod schema
+- **WHEN** a procedure input includes fields not defined in its Zod schema
 - **THEN** those fields are stripped and do not reach the database
