@@ -17,6 +17,15 @@ export const env = createEnv({
     // Consumed only inside lib/sdk/server.
     PING_PROVIDER: z.string().min(1).default("a"),
     PING_FALLBACK: z.string().optional(),
+    // LLM capability: active provider + model (+ optional comma-separated fallback).
+    // Consumed only inside lib/ai. Switching provider/model is an env change, not code.
+    AI_PROVIDER: z.string().min(1).default("anthropic"),
+    AI_MODEL: z.string().min(1).default("claude-opus-4-8"),
+    AI_FALLBACK: z.string().optional(),
+    // Provider API keys are server-only and read only inside lib/ai. Optional so the app
+    // builds without them; the relevant adapter throws at call time if its key is absent.
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    OPENAI_API_KEY: z.string().min(1).optional(),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -33,6 +42,11 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     PING_PROVIDER: process.env.PING_PROVIDER,
     PING_FALLBACK: process.env.PING_FALLBACK,
+    AI_PROVIDER: process.env.AI_PROVIDER,
+    AI_MODEL: process.env.AI_MODEL,
+    AI_FALLBACK: process.env.AI_FALLBACK,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
