@@ -114,7 +114,15 @@ export function CampaignChildren({
           notes: r.notes ?? undefined,
         })}
         rowTitle={(r) => r.title}
-        rowMeta={(r) => new Date(r.date).toLocaleString()}
+        rowMeta={(r) =>
+          // Fixed locale + UTC so server and client render identical text (avoids a
+          // hydration mismatch from differing ambient locale/timezone).
+          new Date(r.date).toLocaleString("en-US", {
+            timeZone: "UTC",
+            dateStyle: "medium",
+            timeStyle: "short",
+          })
+        }
         createFn={(v) => sessionM.create.mutateAsync({ ...v, campaignId })}
         updateFn={(id, v) => sessionM.update.mutateAsync({ id, data: v })}
         deleteFn={(id) => sessionM.del.mutateAsync({ id })}
