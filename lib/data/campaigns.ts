@@ -3,7 +3,7 @@ import "server-only";
 import type { Campaign, NPC } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { CreateCampaignInput, UpdateCampaignInput } from "@/lib/validation/campaign";
-import type { CreateNpcInput } from "@/lib/validation/npc";
+import type { CreateNpcInput, UpdateNpcInput } from "@/lib/validation/npc";
 
 // Owner-scoped data access. EVERY query is parameterized by the owner's id so a user can
 // never read or write another user's data. Callers pass `ownerId` from the session — it
@@ -84,4 +84,28 @@ export async function createNpcForOwnedCampaign(
   if (!owned) return null;
   // Parent comes from the path/owned campaign, never from the body.
   return prisma.nPC.create({ data: { ...data, campaignId } });
+}
+
+export async function updateNpcForOwner(
+  ownerId: string,
+  id: string,
+  data: UpdateNpcInput,
+): Promise<NPC | null> {
+  // Relation filter scopes the update to NPCs whose campaign the owner owns.
+  const { count } = await prisma.nPC.updateMany({
+    where: { id, campaign: { ownerId } },
+    data,
+  });
+  if (count === 0) return null;
+  return prisma.nPC.findUnique({ where: { id } });
+}
+
+export async function deleteNpcForOwner(
+  ownerId: string,
+  id: string,
+): Promise<boolean> {
+  const { count } = await prisma.nPC.deleteMany({
+    where: { id, campaign: { ownerId } },
+  });
+  return count > 0;
 }

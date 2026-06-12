@@ -24,7 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
             <nav aria-label="Primary" className="flex items-center gap-1">
               <Link
-                href="/"
+                href="/campaigns"
                 className="rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
               >
                 Campaigns

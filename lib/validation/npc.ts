@@ -12,3 +12,12 @@ export const createNpcSchema = z.object({
 });
 
 export type CreateNpcInput = z.infer<typeof createNpcSchema>;
+
+// Partial update: any subset of the creatable fields, at least one present.
+export const updateNpcSchema = createNpcSchema
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "at least one field must be provided",
+  });
+
+export type UpdateNpcInput = z.infer<typeof updateNpcSchema>;
