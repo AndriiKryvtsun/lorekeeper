@@ -4,16 +4,30 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { env } from "~/env";
 
-// Next.js 16 "Proxy" convention (formerly Middleware). Refreshes the Supabase session
-// and protects every route except the public login/auth-callback routes.
+// Next.js 16 "Proxy" convention (formerly Middleware). Refreshes the Supabase session and
+// protects every route except the public (auth) pages and /auth/* handlers. Signed-in users
+// are kept out of the auth pages.
 
-// Public routes reachable without a session.
-const PUBLIC_PATHS = ["/login", "/auth/callback"];
+// Auth pages off-limits once signed in. NOTE: /reset-password is intentionally excluded —
+// a recovery session is "authenticated" but must be allowed to reach the reset page.
+const REDIRECT_WHEN_AUTHED = ["/sign-in", "/sign-up", "/forgot-password"];
+// Public routes reachable without a session: the auth pages, reset-password, and /auth/*.
+const PUBLIC_PATHS = [
+  ...REDIRECT_WHEN_AUTHED,
+  "/reset-password",
+  "/auth",
+];
+
+function matches(pathname: string, paths: string[]): boolean {
+  return paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
 function isPublic(pathname: string): boolean {
-  return PUBLIC_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
+  return matches(pathname, PUBLIC_PATHS);
+}
+
+function isAuthPage(pathname: string): boolean {
+  return matches(pathname, REDIRECT_WHEN_AUTHED);
 }
 
 function hardenedCookieOptions(options: CookieOptions): CookieOptions {
@@ -49,15 +63,24 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  // Signed-in users should never see the auth pages — send them into the app.
+  if (user && isAuthPage(pathname)) {
+    const appUrl = request.nextUrl.clone();
+    appUrl.pathname = "/campaigns";
+    appUrl.search = "";
+    return NextResponse.redirect(appUrl);
+  }
+
   if (!user && !isPublic(pathname)) {
-    // API routes are rejected with 401; page routes redirect to login.
+    // API routes are rejected with 401; page routes redirect to sign-in.
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.searchParams.set("redirectTo", pathname);
-    return NextResponse.redirect(loginUrl);
+    const signInUrl = request.nextUrl.clone();
+    signInUrl.pathname = "/sign-in";
+    signInUrl.searchParams.set("redirectTo", pathname);
+    return NextResponse.redirect(signInUrl);
   }
 
   return response;

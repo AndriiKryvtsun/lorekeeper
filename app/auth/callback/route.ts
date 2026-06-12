@@ -7,17 +7,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const redirectTo = url.searchParams.get("redirectTo") ?? "/";
+  const redirectTo =
+    url.searchParams.get("next") ?? url.searchParams.get("redirectTo") ?? "/campaigns";
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=missing_code", url.origin));
+    return NextResponse.redirect(
+      new URL("/sign-in?error=missing_code", url.origin),
+    );
   }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return NextResponse.redirect(new URL("/login?error=auth", url.origin));
+    return NextResponse.redirect(new URL("/sign-in?error=auth", url.origin));
   }
 
   return NextResponse.redirect(new URL(redirectTo, url.origin));

@@ -8,7 +8,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/login");
+    redirect("/sign-in");
   }
   return <>{children}</>;
 }

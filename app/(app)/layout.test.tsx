@@ -20,12 +20,12 @@ beforeEach(() => {
 });
 
 describe("(app) layout auth guard", () => {
-  it("redirects anonymous users to /login", async () => {
+  it("redirects anonymous users to /sign-in", async () => {
     authMock.mockResolvedValue(null);
     await expect(
       AppLayout({ children: null }),
-    ).rejects.toThrow("REDIRECT:/login");
-    expect(redirectMock).toHaveBeenCalledWith("/login");
+    ).rejects.toThrow("REDIRECT:/sign-in");
+    expect(redirectMock).toHaveBeenCalledWith("/sign-in");
   });
 
   it("renders children for an authenticated user", async () => {
