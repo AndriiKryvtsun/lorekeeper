@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { AssistantWidget } from "@/components/assistant/assistant-widget";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 
 // Auth guard + app shell for all authenticated screens. Defense-in-depth behind the proxy:
@@ -13,5 +14,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!user) {
     redirect("/sign-in");
   }
-  return <AppShell>{children}</AppShell>;
+  // The assistant launcher lives at the layout root (sibling of the shell) so it persists
+  // across in-app navigation and overlays the page without being inside the main landmark.
+  return (
+    <>
+      <AppShell>{children}</AppShell>
+      <AssistantWidget />
+    </>
+  );
 }
