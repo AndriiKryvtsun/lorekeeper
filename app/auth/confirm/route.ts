@@ -3,27 +3,32 @@ import { NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-// Verifies an email OTP (confirmation, recovery, magic link) carrying `token_hash` + `type`,
-// establishes the session via the server client, then redirects onward. Recovery links pass
-// `next=/reset-password` so the recovery session lands on the reset page.
+// Establishes a session from an email link, then redirects onward. Handles BOTH email link
+// styles so it works regardless of the Supabase email-template configuration:
+//   - token_hash + type  → verifyOtp (custom "{token_hash}&type=..." template, cross-device)
+//   - code               → exchangeCodeForSession (default PKCE template)
+// Recovery links pass `next=/reset-password` so the recovery session lands on the reset page.
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type") as EmailOtpType | null;
+  const code = url.searchParams.get("code");
   const next = url.searchParams.get("next") ?? "/campaigns";
 
-  if (!tokenHash || !type) {
-    return NextResponse.redirect(
-      new URL("/sign-in?error=invalid_link", url.origin),
-    );
-  }
+  const invalid = NextResponse.redirect(
+    new URL("/sign-in?error=invalid_link", url.origin),
+  );
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-  if (error) {
-    return NextResponse.redirect(
-      new URL("/sign-in?error=invalid_link", url.origin),
-    );
+
+  if (tokenHash && type) {
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (error) return invalid;
+  } else if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return invalid;
+  } else {
+    return invalid;
   }
 
   return NextResponse.redirect(new URL(next, url.origin));

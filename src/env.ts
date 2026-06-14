@@ -26,6 +26,17 @@ export const env = createEnv({
     // builds without them; the relevant adapter throws at call time if its key is absent.
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
     OPENAI_API_KEY: z.string().min(1).optional(),
+    GROQ_API_KEY: z.string().min(1).optional(),
+    // Assistant model tiers (lib/ai). Cheap classify → mid answer → high reasoning.
+    AI_MODEL_CLASSIFY: z.string().min(1).default("claude-haiku-4-5"),
+    AI_MODEL_ANSWER: z.string().min(1).default("claude-sonnet-4-6"),
+    AI_MODEL_REASONING: z.string().min(1).default("claude-opus-4-8"),
+    // External rate-limit store (Upstash Redis). Optional: when unset, limiting is disabled
+    // (dev/test). Read only inside lib/ai.
+    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+    // Per-user daily token budget for the assistant.
+    ASSISTANT_DAILY_TOKEN_BUDGET: z.coerce.number().int().positive().default(100_000),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -47,6 +58,13 @@ export const env = createEnv({
     AI_FALLBACK: process.env.AI_FALLBACK,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+    AI_MODEL_CLASSIFY: process.env.AI_MODEL_CLASSIFY,
+    AI_MODEL_ANSWER: process.env.AI_MODEL_ANSWER,
+    AI_MODEL_REASONING: process.env.AI_MODEL_REASONING,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    ASSISTANT_DAILY_TOKEN_BUDGET: process.env.ASSISTANT_DAILY_TOKEN_BUDGET,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,

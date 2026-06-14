@@ -33,10 +33,13 @@ const allFiles = ["lib", "app", "src", "components"]
   .filter((f) => !/\.(test|spec)\.(ts|tsx)$/.test(norm(f)));
 
 describe("vendor/AI-SDK imports are confined to lib/ai", () => {
-  // Matches `from "ai"` and `from "@ai-sdk/..."` import statements.
-  const VENDOR_IMPORT = /from\s+["'](ai|@ai-sdk\/[^"']+)["']/;
+  // Matches provider/model SDK imports: `from "ai"`, `@ai-sdk/anthropic`, `@ai-sdk/openai`,
+  // `@ai-sdk/groq`. The client UI transport hook `@ai-sdk/react` (useChat) is intentionally
+  // NOT matched — it talks to our own route, performs no model-provider call, and is allowed
+  // in the client.
+  const VENDOR_IMPORT = /from\s+["'](ai|@ai-sdk\/(anthropic|openai|groq))["']/;
 
-  it("no file outside lib/ai imports a vendor/AI-SDK package", () => {
+  it("no file outside lib/ai imports a provider/model SDK", () => {
     const offenders = allFiles.filter((f) => {
       const n = norm(f);
       if (n.includes("/lib/ai/")) return false;
@@ -55,7 +58,7 @@ describe("vendor/AI-SDK imports are confined to lib/ai", () => {
 });
 
 describe("provider API keys are referenced only in lib/ai (+ src/env.ts)", () => {
-  for (const key of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]) {
+  for (const key of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"]) {
     it(`does not reference ${key} outside lib/ai or src/env.ts`, () => {
       const offenders = allFiles.filter((f) => {
         const n = norm(f);

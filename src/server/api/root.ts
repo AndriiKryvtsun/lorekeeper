@@ -1,3 +1,4 @@
+import { assistantRouter } from "~/server/api/routers/assistant";
 import { campaignRouter } from "~/server/api/routers/campaign";
 import { characterRouter } from "~/server/api/routers/character";
 import { itemRouter } from "~/server/api/routers/item";
@@ -14,6 +15,7 @@ export const appRouter = createTRPCRouter({
   location: locationRouter,
   item: itemRouter,
   character: characterRouter,
+  assistant: assistantRouter,
 });
 
 // Exported type used by the clients for end-to-end type safety.

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAnthropicAdapter } from "@/lib/ai/adapters/anthropic";
+import { createGroqAdapter } from "@/lib/ai/adapters/groq";
 import { createOpenAiAdapter } from "@/lib/ai/adapters/openai";
 import type { LlmProvider } from "@/lib/ai/port";
 import { Registry } from "@/lib/sdk/core/registry";
@@ -12,7 +13,8 @@ import { env } from "~/env";
 // operational concern — selecting/switching is an env change, never caller code).
 const registry = new Registry<LlmProvider>("llm")
   .register("anthropic", createAnthropicAdapter(env.AI_MODEL ?? "claude-opus-4-8"))
-  .register("openai", createOpenAiAdapter(env.AI_MODEL ?? "claude-opus-4-8"));
+  .register("openai", createOpenAiAdapter(env.AI_MODEL ?? "claude-opus-4-8"))
+  .register("groq", createGroqAdapter(env.AI_MODEL ?? "claude-opus-4-8"));
 
 function selection(): SelectionConfig {
   const active = env.AI_PROVIDER ?? "anthropic";

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { CampaignActions } from "@/components/campaigns/campaign-actions";
 import { CampaignChildren } from "@/components/campaigns/campaign-children";
+import { CampaignChat } from "@/components/assistant/campaign-chat";
 import { api } from "~/trpc/server";
 
 // Server Component: fetches the campaign and all child lists via the RSC caller, then
@@ -57,6 +58,8 @@ export default async function CampaignDetailPage({
         items={items}
         characters={characters}
       />
+
+      <CampaignChat campaignId={campaign.id} />
     </div>
   );
 }
