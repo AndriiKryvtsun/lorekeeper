@@ -37,6 +37,9 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
     // Per-user daily token budget for the assistant.
     ASSISTANT_DAILY_TOKEN_BUDGET: z.coerce.number().int().positive().default(100_000),
+    // Shared secret for the scheduled summary worker route. When unset, the route refuses
+    // all calls (fail-closed). Read only by the cron route.
+    CRON_SECRET: z.string().min(1).optional(),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -68,6 +71,7 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     ASSISTANT_DAILY_TOKEN_BUDGET: process.env.ASSISTANT_DAILY_TOKEN_BUDGET,
+    CRON_SECRET: process.env.CRON_SECRET,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
