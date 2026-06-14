@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-import { AppShell } from "@/components/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { env } from "~/env";
 import { TRPCReactProvider } from "~/trpc/react";
 
 const geistSans = Geist({
@@ -17,9 +17,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// App-wide metadata. The whole app is `noindex` by default; only the home page (`/`) opts
+// back into indexing via its own `generateMetadata`. `metadataBase` resolves relative
+// canonical/Open Graph URLs.
 export const metadata: Metadata = {
-  title: "LoreKeeper",
+  metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: { default: "LoreKeeper", template: "%s · LoreKeeper" },
   description: "Campaign companion for tabletop RPGs.",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
@@ -40,9 +45,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TRPCReactProvider>
-            <AppShell>{children}</AppShell>
-          </TRPCReactProvider>
+          <TRPCReactProvider>{children}</TRPCReactProvider>
           <Toaster />
         </ThemeProvider>
       </body>

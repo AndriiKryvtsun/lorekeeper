@@ -44,6 +44,9 @@ export const env = createEnv({
     // Cloudflare Turnstile site key (public). Optional: the widget falls back to the
     // Turnstile always-pass test key when unset so dev/test work without configuration.
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
+    // Public site origin used for canonical/Open Graph URLs (metadataBase). Optional;
+    // defaults to localhost so dev/build work without configuration.
+    NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
   },
   // In Next.js, client vars must be destructured explicitly so the bundler can inline them.
   runtimeEnv: {
@@ -68,6 +71,7 @@ export const env = createEnv({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   },
   // Treat empty strings as undefined so a blank var fails the "required" rule.
   emptyStringAsUndefined: true,

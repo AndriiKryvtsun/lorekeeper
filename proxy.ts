@@ -11,8 +11,12 @@ import { env } from "~/env";
 // Auth pages off-limits once signed in. NOTE: /reset-password is intentionally excluded —
 // a recovery session is "authenticated" but must be allowed to reach the reset page.
 const REDIRECT_WHEN_AUTHED = ["/sign-in", "/sign-up", "/forgot-password"];
-// Public routes reachable without a session: the auth pages, reset-password, and /auth/*.
+// Public routes reachable without a session: the home page, the auth pages, reset-password,
+// and /auth/*. NOTE: "/" matches the root exactly (the prefix form "//" matches nothing), so
+// it does not make every route public. The home route itself redirects authed users to
+// /campaigns server-side.
 const PUBLIC_PATHS = [
+  "/",
   ...REDIRECT_WHEN_AUTHED,
   "/reset-password",
   "/auth",

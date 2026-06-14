@@ -43,6 +43,18 @@ describe("proxy redirects", () => {
     expect(res.status).toBe(200);
   });
 
+  it("allows an anonymous user to reach the home page (/)", async () => {
+    asAnon();
+    const res = await proxy(req("/"));
+    expect(res.status).toBe(200);
+  });
+
+  it("does not gate / for a signed-in user (the page self-redirects)", async () => {
+    asUser();
+    const res = await proxy(req("/"));
+    expect(res.status).toBe(200);
+  });
+
   it("redirects a signed-in user away from /sign-in to /campaigns", async () => {
     asUser();
     const res = await proxy(req("/sign-in"));

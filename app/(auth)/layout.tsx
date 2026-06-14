@@ -14,8 +14,11 @@ export default async function AuthLayout({
     redirect("/campaigns");
   }
   return (
-    <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center py-10">
+    <main
+      id="main"
+      className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center py-10"
+    >
       {children}
-    </div>
+    </main>
   );
 }
