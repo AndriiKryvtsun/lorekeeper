@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the auth helper and Next's redirect (which throws in real usage to halt rendering).
+// Mock the auth helper, the profile lookup (used to label the header), and Next's redirect
+// (which throws in real usage to halt rendering) so the layout never touches the DB.
 vi.mock("@/lib/auth/getCurrentUser", () => ({ getCurrentUser: vi.fn() }));
+vi.mock("@/lib/data/profile", () => ({ getProfile: vi.fn().mockResolvedValue(null) }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);

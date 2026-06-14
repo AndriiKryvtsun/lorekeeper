@@ -115,3 +115,16 @@ model Character {
 
   @@index([campaignId])
 }
+
+// The current user's own profile, 1:1 with the Supabase auth user (no Prisma relation — the
+// auth user lives in Supabase's auth schema). `userId` is the auth uid and the primary key.
+model Profile {
+  userId      String   @id
+  displayName String?
+  avatarUrl   String?
+  bio         String?
+  locale      String?
+  timezone    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

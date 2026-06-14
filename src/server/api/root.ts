@@ -4,6 +4,7 @@ import { characterRouter } from "~/server/api/routers/character";
 import { itemRouter } from "~/server/api/routers/item";
 import { locationRouter } from "~/server/api/routers/location";
 import { npcRouter } from "~/server/api/routers/npc";
+import { profileRouter } from "~/server/api/routers/profile";
 import { sessionRouter } from "~/server/api/routers/session";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
@@ -16,6 +17,7 @@ export const appRouter = createTRPCRouter({
   item: itemRouter,
   character: characterRouter,
   assistant: assistantRouter,
+  profile: profileRouter,
 });
 
 // Exported type used by the clients for end-to-end type safety.

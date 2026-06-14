@@ -37,4 +37,22 @@ describe("app shell landmarks and skip link", () => {
     // The main region is focusable as the skip target.
     expect(screen.getByRole("main")).toHaveAttribute("id", "main");
   });
+
+  it("provides an accessible account-settings link in the primary nav", () => {
+    renderShell();
+    const account = screen.getByRole("link", { name: /account settings/i });
+    expect(account).toHaveAttribute("href", "/account");
+  });
+
+  it("labels the account link with the display name when provided", () => {
+    render(
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        <AppShell displayName="Aria Stormborn">
+          <p>page content</p>
+        </AppShell>
+      </ThemeProvider>,
+    );
+    const account = screen.getByRole("link", { name: /account settings/i });
+    expect(account).toHaveTextContent("Aria Stormborn");
+  });
 });

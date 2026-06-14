@@ -1,20 +1,67 @@
+import type { ReactNode } from "react";
+
+import { AvatarUploader } from "@/components/account/avatar-uploader";
+import { DeleteAccountDialog } from "@/components/account/delete-account-dialog";
+import { ProfileForm } from "@/components/account/profile-form";
+import { SignOutOthersButton } from "@/components/account/sign-out-others-button";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { UpdatePasswordForm } from "@/components/auth/update-password-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { api } from "~/trpc/server";
 
 export const metadata = { title: "Account · LoreKeeper" };
 
-// Account settings. The set-password form lets magic-link users (who have no password) set
-// one; it works for any authenticated user as a password change.
-export default function AccountPage() {
+// Account & profile settings. Everything is the current user's OWN data — the (app) layout
+// guarantees an authenticated user, and every action is scoped to ctx.user.id server-side.
+export default async function AccountPage() {
+  const [user, profile] = await Promise.all([
+    getCurrentUser(),
+    api.profile.getMyProfile(),
+  ]);
+  const email = user?.email ?? "";
+
   return (
-    <div className="max-w-sm space-y-6">
+    <div className="mx-auto max-w-2xl space-y-8">
       <h1 className="text-2xl font-semibold">Account</h1>
-      <AuthShell
-        title="Set a password"
-        description="Joined via magic link? Set a password to sign in with email + password."
-      >
-        <UpdatePasswordForm submitLabel="Set password" />
-      </AuthShell>
+
+      <Section title="Profile">
+        <AvatarUploader userId={user?.id ?? ""} initialUrl={profile?.avatarUrl ?? null} />
+        <ProfileForm
+          initial={{ displayName: profile?.displayName ?? null, bio: profile?.bio ?? null }}
+        />
+      </Section>
+
+      <Section title="Security">
+        <AuthShell
+          title="Set / change password"
+          description="Magic-link users can set a password; this also changes an existing one. Changing it signs you out everywhere."
+        >
+          <UpdatePasswordForm submitLabel="Update password" />
+        </AuthShell>
+      </Section>
+
+      <Section title="Sessions">
+        <SignOutOthersButton />
+      </Section>
+
+      <Section title="Danger zone">
+        <p className="text-sm text-muted-foreground">
+          Permanently delete your account and all of your data. This cannot be undone.
+        </p>
+        <DeleteAccountDialog email={email} />
+      </Section>
     </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">{children}</CardContent>
+    </Card>
   );
 }

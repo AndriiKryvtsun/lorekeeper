@@ -29,9 +29,12 @@ MUST be indexed and is always set from the session, never from request input.
 
 ### Requirement: Session belongs to a campaign
 The system SHALL persist a `Session` with a unique `id`, a `title`, a `date` stored as a
-full `DateTime` (so a time of day can be recorded), an optional `summary`, and optional
-`notes`. Each Session MUST reference exactly one parent
-`Campaign` and MUST be deleted when its parent Campaign is deleted.
+full `DateTime` (so a time of day can be recorded), an optional user-authored `summary`, and
+optional `notes`. The Session SHALL additionally carry optional AI-summary fields — the
+generated summary text, the model id, the provider, a generation timestamp, and a hash of the
+summarized source content (for idempotency) — distinct from the user-authored `summary`. Each
+Session MUST reference exactly one parent `Campaign` and MUST be deleted when its parent
+Campaign is deleted.
 
 #### Scenario: Session is linked to its campaign
 - **WHEN** a Session is created referencing an existing Campaign `id`
@@ -40,6 +43,10 @@ full `DateTime` (so a time of day can be recorded), an optional `summary`, and o
 #### Scenario: Deleting a campaign removes its sessions
 - **WHEN** a Campaign with Sessions is deleted
 - **THEN** all Sessions referencing that Campaign are also deleted
+
+#### Scenario: AI-summary fields are distinct from the user summary
+- **WHEN** an AI summary is stored on a Session
+- **THEN** it is written to the AI-summary fields (summary text, model id, provider, timestamp, source hash) and does NOT overwrite the user-authored `summary`
 
 ### Requirement: NPC belongs to a campaign
 The system SHALL persist an `NPC` with a unique `id`, a `name`, an optional `role`, an
@@ -138,3 +145,36 @@ their parent campaign's `ownerId`.
 #### Scenario: RLS is enabled on every table
 - **WHEN** the policies migration is applied
 - **THEN** RLS is enabled on Campaign, Session, NPC, Location, Item, and Character with owner-keyed policies
+
+### Requirement: Session summary job queue
+The system SHALL persist a `SessionSummaryJob` representing queued summarization work, with at
+most one job per session (a unique `sessionId`), a status, an attempt count, the source-content
+hash to summarize, and timestamps. A job MUST reference exactly one `Session` and MUST be
+deleted when its Session is deleted. The table SHALL be protected by Row-Level Security,
+scoped through the session's campaign owner like the other tables.
+
+#### Scenario: One job per session
+- **WHEN** a session is enqueued for summarization more than once
+- **THEN** a single job row exists for that session (unique on `sessionId`)
+
+#### Scenario: Job is removed with its session
+- **WHEN** a Session is deleted
+- **THEN** its `SessionSummaryJob` is also deleted
+
+#### Scenario: RLS protects the job table
+- **WHEN** the job table is queried under the authenticated role
+- **THEN** access is restricted via the session's campaign owner, consistent with the other tables
+
+### Requirement: User profile is 1:1 with the auth user
+The system SHALL persist a `Profile` with a unique `userId` (the Supabase auth user id, 1:1),
+an optional `displayName`, optional `avatarUrl`, optional `bio`, optional `locale` and
+`timezone`, and created/updated timestamps. The table SHALL be protected by Row-Level Security
+keyed on the owner (`userId = auth.uid()`), consistent with the other tables.
+
+#### Scenario: One profile per user
+- **WHEN** a profile is created for a user
+- **THEN** at most one `Profile` row exists for that `userId` (unique)
+
+#### Scenario: RLS restricts a profile to its owner
+- **WHEN** the `Profile` table is queried under the authenticated role
+- **THEN** a user can read/write only their own profile row (`userId = auth.uid()`)

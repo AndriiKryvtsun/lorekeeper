@@ -4,7 +4,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { deleteOwnedData } from "@/lib/data/profile";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { deleteAccountSchema } from "@/lib/validation/account";
 import {
   resetPasswordSchema,
   resetRequestSchema,
@@ -181,4 +184,70 @@ export async function signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
   redirect("/sign-in");
+}
+
+// Reauthenticate by re-verifying the current password (magic-link users set a password first).
+// Returns null on success, or an error message. Never logs the password.
+async function reauthenticate(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  email: string,
+  currentPassword: string,
+): Promise<string | null> {
+  const { error } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+  return error ? "Reauthentication failed. Check your current password." : null;
+}
+
+// Revoke the user's OTHER sessions (keeps the current device signed in).
+export async function signOutOtherDevices(): Promise<AuthActionState> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "You must be signed in." };
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.signOut({ scope: "others" });
+  if (error) return { ok: false, error: "Could not sign out other sessions." };
+  return { ok: true, message: "Signed out of all other devices." };
+}
+
+// Irreversible account deletion. Requires a typed email matching the account AND
+// reauthentication. Deletes owned data (campaigns cascade) + profile, then the auth user via
+// the service-role admin API (server only). Writes a redacted audit record.
+export async function deleteAccount(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const parsed = deleteAccountSchema.safeParse({
+    confirmEmail: formData.get("confirmEmail"),
+    currentPassword: formData.get("currentPassword"),
+  });
+  if (!parsed.success) return { ok: false, error: firstError(parsed.error.issues) };
+
+  const user = await getCurrentUser();
+  if (!user?.email) return { ok: false, error: "You must be signed in." };
+  if (parsed.data.confirmEmail !== user.email.toLowerCase()) {
+    return { ok: false, error: "The email you typed does not match your account email." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const reauthError = await reauthenticate(supabase, user.email, parsed.data.currentPassword);
+  if (reauthError) return { ok: false, error: reauthError };
+
+  // Remove owned application data first, then the auth user.
+  await deleteOwnedData(user.id);
+  const admin = createSupabaseAdminClient();
+  const { error: adminError } = await admin.auth.admin.deleteUser(user.id);
+  console.info(
+    JSON.stringify({
+      kind: "account.deleted",
+      userId: user.id,
+      outcome: adminError ? "auth_delete_failed" : "success",
+      at: new Date().toISOString(),
+    }),
+  );
+  if (adminError) {
+    return {
+      ok: false,
+      error: "Your data was removed but the account could not be fully deleted. Contact support.",
+    };
+  }
+  await supabase.auth.signOut({ scope: "global" });
+  redirect("/sign-in?deleted=1");
 }

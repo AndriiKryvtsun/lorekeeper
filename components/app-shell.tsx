@@ -1,11 +1,21 @@
+import { UserCircle } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Responsive authenticated app shell: skip link + banner header, primary nav, and the
 // main content region. Semantic landmarks (header/banner, nav, main) are explicit.
-export function AppShell({ children }: { children: ReactNode }) {
+// `displayName` (when set) labels the account link in the header.
+export function AppShell({
+  children,
+  displayName,
+}: {
+  children: ReactNode;
+  displayName?: string | null;
+}) {
   return (
     <>
       {/* Skip-to-content: visually hidden until focused, then jumps to #main. */}
@@ -28,6 +38,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className="rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
               >
                 Campaigns
+              </Link>
+              <Link
+                href="/account"
+                aria-label="Account settings"
+                title="Account settings"
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "sm" }),
+                  "gap-2",
+                )}
+              >
+                <UserCircle aria-hidden className="size-4" />
+                {displayName ? (
+                  <span className="max-w-[14ch] truncate">{displayName}</span>
+                ) : null}
               </Link>
               <ThemeToggle />
             </nav>
