@@ -2,6 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import {
+  buildContentSecurityPolicy,
+  generateNonce,
+  SECURITY_HEADERS,
+} from "@/lib/security/headers";
 import { env } from "~/env";
 
 // Next.js 16 "Proxy" convention (formerly Middleware). Refreshes the Supabase session and
@@ -38,8 +43,36 @@ function hardenedCookieOptions(options: CookieOptions): CookieOptions {
   return { ...options, httpOnly: true, secure: true, sameSite: "lax" };
 }
 
+function supabaseOrigin(): string | null {
+  try {
+    return new URL(env.NEXT_PUBLIC_SUPABASE_URL).origin;
+  } catch {
+    return null;
+  }
+}
+
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  // Per-request nonce + CSP. Forward them on the REQUEST headers so Next applies the nonce to
+  // its own scripts; also set them (plus the static hardening headers) on every response.
+  const nonce = generateNonce();
+  const csp = buildContentSecurityPolicy({
+    nonce,
+    supabaseOrigin: supabaseOrigin(),
+    dev: env.NODE_ENV !== "production",
+  });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", csp);
+
+  const withSecurityHeaders = (res: NextResponse): NextResponse => {
+    res.headers.set("content-security-policy", csp);
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+      res.headers.set(name, value);
+    }
+    return res;
+  };
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -53,7 +86,7 @@ export async function proxy(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
-        response = NextResponse.next({ request });
+        response = NextResponse.next({ request: { headers: requestHeaders } });
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, hardenedCookieOptions(options));
         });
@@ -73,21 +106,23 @@ export async function proxy(request: NextRequest) {
     const appUrl = request.nextUrl.clone();
     appUrl.pathname = "/campaigns";
     appUrl.search = "";
-    return NextResponse.redirect(appUrl);
+    return withSecurityHeaders(NextResponse.redirect(appUrl));
   }
 
   if (!user && !isPublic(pathname)) {
     // API routes are rejected with 401; page routes redirect to sign-in.
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return withSecurityHeaders(
+        NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      );
     }
     const signInUrl = request.nextUrl.clone();
     signInUrl.pathname = "/sign-in";
     signInUrl.searchParams.set("redirectTo", pathname);
-    return NextResponse.redirect(signInUrl);
+    return withSecurityHeaders(NextResponse.redirect(signInUrl));
   }
 
-  return response;
+  return withSecurityHeaders(response);
 }
 
 export const config = {

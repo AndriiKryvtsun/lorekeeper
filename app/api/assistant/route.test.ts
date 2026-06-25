@@ -34,7 +34,12 @@ const runAssistant = svc.runAssistant as unknown as ReturnType<typeof vi.fn>;
 function req(body: unknown): Request {
   return new Request("http://localhost/api/assistant", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      // Same-origin so the route's CSRF/Origin check passes.
+      origin: "http://localhost",
+      "x-forwarded-host": "localhost",
+    },
     body: JSON.stringify(body),
   });
 }
@@ -49,6 +54,23 @@ beforeEach(() => {
   enforce.mockResolvedValue({ ok: true });
   overBudget.mockResolvedValue(false);
   runAssistant.mockResolvedValue(new Response("ok"));
+});
+
+describe("origin", () => {
+  it("rejects a cross-origin POST with 403 before auth/generation", async () => {
+    const crossOrigin = new Request("http://localhost/api/assistant", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://evil.example",
+        "x-forwarded-host": "localhost",
+      },
+      body: JSON.stringify(validBody),
+    });
+    const res = await POST(crossOrigin);
+    expect(res.status).toBe(403);
+    expect(runAssistant).not.toHaveBeenCalled();
+  });
 });
 
 describe("auth", () => {

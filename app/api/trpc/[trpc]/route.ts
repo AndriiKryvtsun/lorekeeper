@@ -1,5 +1,7 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { NextResponse } from "next/server";
 
+import { isSameOrigin } from "@/lib/security/origin";
 import { appRouter } from "~/server/api/root";
 import { createTRPCContext } from "~/server/api/trpc";
 
@@ -12,4 +14,15 @@ const handler = (request: Request) =>
     createContext: () => createTRPCContext({ headers: request.headers }),
   });
 
-export { handler as GET, handler as POST };
+// Queries (GET) are safe; mutations (POST) are state-changing — reject cross-origin POSTs
+// (defense-in-depth alongside auth + Server Actions' built-in CSRF).
+export function GET(request: Request) {
+  return handler(request);
+}
+
+export function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return handler(request);
+}

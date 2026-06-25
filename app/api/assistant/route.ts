@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 
 import { auditAssistantCall } from "@/lib/ai/audit";
 import { AssistantHttpError, runAssistant } from "@/lib/ai/assistant-service";
-import { enforceRateLimits, isOverDailyBudget } from "@/lib/ai/rate-limit";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { assistantInputSchema, MAX_BODY_BYTES } from "@/lib/validation/assistant";
+import {
+  enforceRateLimits,
+  isOverDailyBudget,
+  isOverRequestSize,
+} from "@/lib/security/limits";
+import { isSameOrigin } from "@/lib/security/origin";
+import { assistantInputSchema } from "@/lib/validation/assistant";
 
 // Node runtime: the Prisma pg adapter (used by the owner-scoped data layer) is not Edge-safe.
 export const runtime = "nodejs";
@@ -48,6 +53,11 @@ function readQuestion(raw: unknown): string {
 }
 
 export async function POST(req: Request) {
+  // Defense-in-depth CSRF: reject cross-origin state-changing requests.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -78,9 +88,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // Reject oversized bodies before parsing.
-  const contentLength = Number(req.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+  // Reject oversized bodies before parsing (centralized request-size limit).
+  if (isOverRequestSize(req)) {
     return NextResponse.json({ error: "Request too large" }, { status: 413 });
   }
 

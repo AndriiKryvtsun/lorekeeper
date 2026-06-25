@@ -68,3 +68,25 @@ describe("proxy redirects", () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe("security headers", () => {
+  it("sets a nonce CSP (no unsafe-inline scripts) + hardening headers on responses", async () => {
+    asAnon();
+    const res = await proxy(req("/"));
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp).toMatch(/script-src[^;]*'nonce-/);
+    const scriptSrc = csp.split(";").map((d) => d.trim()).find((d) => d.startsWith("script-src"))!;
+    expect(scriptSrc).not.toContain("unsafe-inline");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(res.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("strict-transport-security")).toContain("max-age=");
+  });
+
+  it("applies the headers even on the anonymous 401 for a protected API route", async () => {
+    asAnon();
+    const res = await proxy(req("/api/trpc/x"));
+    expect(res.status).toBe(401);
+    expect(res.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+  });
+});

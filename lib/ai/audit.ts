@@ -1,5 +1,7 @@
 import "server-only";
 
+import { audit } from "@/lib/observability/logger";
+
 // Redacted structured logging + per-call audit for the assistant. By construction these
 // accept ONLY non-sensitive fields — there is no parameter for the question, retrieved
 // records, the answer, or secrets, so prompts/PII/secrets cannot be logged.
@@ -18,16 +20,9 @@ export type AssistantAuditRecord = {
   reason?: string;
 };
 
-// Writes one durable, redacted audit line per assistant call. A DB-backed audit table can
-// replace this sink later without changing callers.
+// Writes one durable, redacted audit line per assistant call, via the shared audit sink.
 export function auditAssistantCall(record: AssistantAuditRecord): void {
-  console.info(
-    JSON.stringify({
-      kind: "assistant.audit",
-      at: new Date().toISOString(),
-      ...record,
-    }),
-  );
+  audit("assistant.call", { ...record });
 }
 
 // Redacted audit for the write-proposal flow. Like the call audit, it has NO parameter for
@@ -48,11 +43,5 @@ export type ProposalAuditRecord = {
 };
 
 export function auditProposalEvent(record: ProposalAuditRecord): void {
-  console.info(
-    JSON.stringify({
-      kind: "assistant.proposal_audit",
-      at: new Date().toISOString(),
-      ...record,
-    }),
-  );
+  audit("assistant.proposal", { ...record });
 }

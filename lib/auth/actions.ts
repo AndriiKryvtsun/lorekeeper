@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { deleteOwnedData } from "@/lib/data/profile";
+import { audit } from "@/lib/observability/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { deleteAccountSchema } from "@/lib/validation/account";
@@ -234,14 +235,10 @@ export async function deleteAccount(
   await deleteOwnedData(user.id);
   const admin = createSupabaseAdminClient();
   const { error: adminError } = await admin.auth.admin.deleteUser(user.id);
-  console.info(
-    JSON.stringify({
-      kind: "account.deleted",
-      userId: user.id,
-      outcome: adminError ? "auth_delete_failed" : "success",
-      at: new Date().toISOString(),
-    }),
-  );
+  audit("account.deleted", {
+    userId: user.id,
+    outcome: adminError ? "auth_delete_failed" : "success",
+  });
   if (adminError) {
     return {
       ok: false,
