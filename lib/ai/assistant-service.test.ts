@@ -2,12 +2,14 @@ import type { User } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Stubs shared with the module mocks (hoisted so vi.mock factories can close over them).
-const { classifyGen, answerGen, streamTextMock, recordTokenUsage } = vi.hoisted(() => ({
-  classifyGen: vi.fn(),
-  answerGen: vi.fn(),
-  streamTextMock: vi.fn(),
-  recordTokenUsage: vi.fn(),
-}));
+const { classifyGen, classifyObjGen, answerGen, streamTextMock, recordTokenUsage } =
+  vi.hoisted(() => ({
+    classifyGen: vi.fn(),
+    classifyObjGen: vi.fn(),
+    answerGen: vi.fn(),
+    streamTextMock: vi.fn(),
+    recordTokenUsage: vi.fn(),
+  }));
 
 // Mock the data layer so the real Prisma client is never constructed, and to drive ownership.
 vi.mock("@/lib/data/campaigns", () => ({
@@ -25,6 +27,8 @@ vi.mock("@/lib/data/proposal", () => ({ resolveEntityIdByName: vi.fn() }));
 vi.mock("@/lib/ai/tiers", () => ({
   getProvider: (tier: string) => ({
     generate: tier === "classify" ? classifyGen : answerGen,
+    // classifyEnrichmentSource (NPC/Character create) uses the classify tier's generateObject.
+    generateObject: classifyObjGen,
   }),
   getLanguageModel: () => ({ model: {}, allowTemperature: false, providerId: "x" }),
   modelForTier: () => "model-x",
@@ -114,15 +118,13 @@ describe("intent routing", () => {
     m(data.listNpcsForOwnedCampaign).mockResolvedValue([]);
   });
 
-  it("routes a write intent to a proposal stream carrying a data-proposal part", async () => {
+  it("routes an NPC create to an inline source-choice (enrichment), not a direct proposal", async () => {
     classifyGen.mockResolvedValue({
       text: '{"kind":"write","action":"create","entity":"npc"}',
       usage: USAGE,
     });
-    answerGen.mockResolvedValue({
-      text: '{"name":"Sera","status":"alive"}',
-      usage: USAGE,
-    });
+    // Source classification is ambiguous → the client is offered a choice.
+    classifyObjGen.mockResolvedValue({ object: { source: "ambiguous" }, usage: USAGE });
 
     const res = await runAssistant({
       user: USER,
@@ -130,9 +132,27 @@ describe("intent routing", () => {
       question: "create an npc named Sera",
     });
     const body = await res.text();
+    expect(body).toContain("data-source-choice");
+    // No agent proposal is generated up front, and the Q&A path is not taken.
+    expect(answerGen).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("routes a non-enrichable write intent (location) to a data-proposal stream", async () => {
+    classifyGen.mockResolvedValue({
+      text: '{"kind":"write","action":"create","entity":"location"}',
+      usage: USAGE,
+    });
+    answerGen.mockResolvedValue({ text: '{"name":"Trapdoor"}', usage: USAGE });
+
+    const res = await runAssistant({
+      user: USER,
+      campaignId: "c1",
+      question: "create a location named Trapdoor",
+    });
+    const body = await res.text();
     expect(body).toContain("data-proposal");
-    expect(body).toContain("Sera");
-    // The Q&A streaming path is NOT taken for a write intent.
+    expect(body).toContain("Trapdoor");
     expect(streamTextMock).not.toHaveBeenCalled();
   });
 

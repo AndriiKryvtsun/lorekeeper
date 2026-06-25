@@ -48,6 +48,12 @@ export type ProposalEntity = (typeof PROPOSAL_ENTITIES)[number];
 export const PROPOSAL_ACTIONS = ["create", "update", "delete"] as const;
 export type ProposalAction = (typeof PROPOSAL_ACTIONS)[number];
 
+// A create proposal MAY be tagged with the source it came from (entity enrichment). Both
+// sources produce the SAME validated fields and commit through the one path; `attribution`
+// carries the OGL/CC notice for SRD-sourced entities so it can be persisted.
+export const PROPOSAL_SOURCES = ["srd", "agent"] as const;
+export type ProposalSource = (typeof PROPOSAL_SOURCES)[number];
+
 // The creatable/updatable fields per entity — the SAME schemas the tRPC mutations validate.
 export const createFieldSchemas = {
   npc: createNpcSchema,
@@ -89,6 +95,9 @@ export type CreateProposal = {
     entity: E;
     campaignId: string;
     fields: CreateInputByEntity[E];
+    // Optional enrichment provenance (entity-enrichment). Absent for plain assistant creates.
+    source?: ProposalSource;
+    attribution?: string;
   };
 }[ProposalEntity];
 
@@ -119,6 +128,9 @@ export const proposalEnvelopeSchema = z.object({
   campaignId: z.string().trim().min(1),
   target: z.string().trim().min(1).optional(),
   fields: z.unknown().optional(),
+  // Enrichment provenance (create only). Validated/threaded in parseProposal.
+  source: z.enum(PROPOSAL_SOURCES).optional(),
+  attribution: z.string().trim().min(1).optional(),
 });
 
 // Validate an untrusted/model-produced object into a typed Proposal, or null if it is not a
@@ -128,12 +140,20 @@ export const proposalEnvelopeSchema = z.object({
 export function parseProposal(raw: unknown): Proposal | null {
   const env = proposalEnvelopeSchema.safeParse(raw);
   if (!env.success) return null;
-  const { action, entity, campaignId, target, fields } = env.data;
+  const { action, entity, campaignId, target, fields, source, attribution } = env.data;
 
   if (action === "create") {
     const parsed = createFieldSchemas[entity].safeParse(fields);
     if (!parsed.success) return null;
-    return { action, entity, campaignId, fields: parsed.data } as Proposal;
+    // Attribution is only meaningful for an SRD source; drop it otherwise.
+    return {
+      action,
+      entity,
+      campaignId,
+      fields: parsed.data,
+      source,
+      attribution: source === "srd" ? attribution : undefined,
+    } as Proposal;
   }
 
   if (action === "update") {

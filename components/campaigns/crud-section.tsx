@@ -2,7 +2,7 @@
 
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Controller,
   useForm,
@@ -13,6 +13,7 @@ import {
 } from "react-hook-form";
 
 import { FormField } from "@/components/campaigns/form-field";
+import { EnrichControls, type EnrichProvenance } from "@/components/enrichment/enrich-controls";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -56,6 +57,16 @@ export type CrudSectionProps<TRow extends Row, TForm extends FieldValues> = {
   createFn: (values: TForm) => Promise<TRow>;
   updateFn: (id: string, values: TForm) => Promise<TRow>;
   deleteFn: (id: string) => Promise<unknown>;
+  // Optional entity enrichment (NPC/Character). When set, a secondary "Enrich" affordance is
+  // shown for NEW entities; an enriched create is committed through the unified commit path
+  // (`commit`) so provenance is persisted — manual entry still uses `createFn`.
+  enrichment?: {
+    kind: "npc" | "character";
+    campaignId: string;
+    offerSrd: boolean;
+    nameField: Path<TForm>;
+    commit: (values: TForm, provenance: EnrichProvenance) => Promise<TRow>;
+  };
 };
 
 const emptyToUndefined = (v: string) => (v === "" ? undefined : v);
@@ -77,11 +88,21 @@ export function CrudSection<TRow extends Row, TForm extends FieldValues>({
   createFn,
   updateFn,
   deleteFn,
+  enrichment,
 }: CrudSectionProps<TRow, TForm>) {
   const router = useRouter();
   const [items, setItems] = useState<TRow[]>(initialItems);
+  // Re-sync from the server when the RSC list is refreshed (e.g. after a commit from the chat
+  // widget triggers router.refresh()). Without this, the locally-seeded list would only update
+  // on a full page reload, so a cross-surface commit wouldn't appear.
+  useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
   const [editing, setEditing] = useState<TRow | null>(null);
   const [open, setOpen] = useState(false);
+  // Set when the open form was populated from enrichment; carried into the commit so the
+  // entity's source/attribution are persisted. Cleared whenever the dialog (re)opens.
+  const [provenance, setProvenance] = useState<EnrichProvenance | null>(null);
 
   const form = useForm<TForm>({
     resolver,
@@ -90,12 +111,14 @@ export function CrudSection<TRow extends Row, TForm extends FieldValues>({
 
   function openCreate() {
     setEditing(null);
+    setProvenance(null);
     form.reset(emptyDefaults);
     setOpen(true);
   }
 
   function openEdit(row: TRow) {
     setEditing(row);
+    setProvenance(null);
     form.reset(toDefaults(row));
     setOpen(true);
   }
@@ -108,6 +131,11 @@ export function CrudSection<TRow extends Row, TForm extends FieldValues>({
           prev.map((r) => (r.id === updated.id ? updated : r)),
         );
         toast({ title: `${itemLabel} updated` });
+      } else if (enrichment && provenance) {
+        // Enriched create: go through the unified commit path so provenance is persisted.
+        const created = await enrichment.commit(values, provenance);
+        setItems((prev) => [...prev, created]);
+        toast({ title: `${itemLabel} created` });
       } else {
         const created = await createFn(values);
         setItems((prev) => [...prev, created]);
@@ -152,6 +180,21 @@ export function CrudSection<TRow extends Row, TForm extends FieldValues>({
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={onSubmit} className="space-y-4" noValidate>
+              {enrichment && !editing ? (
+                <EnrichControls
+                  kind={enrichment.kind}
+                  campaignId={enrichment.campaignId}
+                  offerSrd={enrichment.offerSrd}
+                  name={String(form.watch(enrichment.nameField) ?? "")}
+                  onFill={(filled, prov) => {
+                    form.reset({
+                      ...emptyDefaults,
+                      ...(filled as Partial<TForm>),
+                    } as DefaultValues<TForm>);
+                    setProvenance(prov);
+                  }}
+                />
+              ) : null}
               {fields.map((field) => (
                 <FormField
                   key={String(field.name)}

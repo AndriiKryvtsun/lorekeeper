@@ -75,6 +75,11 @@ model NPC {
   campaignId  String
   campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
+  // Provenance: null for manual entry; "srd"/"agent" for enriched entities. `attribution`
+  // holds the OGL/CC notice when the entity originates from the SRD.
+  source      String?
+  attribution String?
+
   ownedItems Item[]
 
   @@index([campaignId])
@@ -112,6 +117,10 @@ model Character {
   notes      String?
   campaignId String
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  // Provenance: null for manual entry; "srd"/"agent" for enriched entities.
+  source      String?
+  attribution String?
 
   @@index([campaignId])
 }

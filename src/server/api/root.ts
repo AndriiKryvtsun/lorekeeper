@@ -1,6 +1,7 @@
 import { assistantRouter } from "~/server/api/routers/assistant";
 import { campaignRouter } from "~/server/api/routers/campaign";
 import { characterRouter } from "~/server/api/routers/character";
+import { enrichmentRouter } from "~/server/api/routers/enrichment";
 import { itemRouter } from "~/server/api/routers/item";
 import { locationRouter } from "~/server/api/routers/location";
 import { npcRouter } from "~/server/api/routers/npc";
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   item: itemRouter,
   character: characterRouter,
   assistant: assistantRouter,
+  enrichment: enrichmentRouter,
   profile: profileRouter,
 });
 

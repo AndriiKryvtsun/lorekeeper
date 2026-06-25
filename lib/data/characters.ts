@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Character } from "@/app/generated/prisma/client";
 import { isOwnedCampaign } from "@/lib/data/owned";
+import { toProvenance, type EntityProvenance } from "@/lib/data/provenance";
 import { prisma } from "@/lib/prisma";
 import type {
   CreateCharacterInput,
@@ -23,9 +24,12 @@ export async function createCharacterForOwner(
   ownerId: string,
   campaignId: string,
   data: CreateCharacterInput,
+  provenance?: EntityProvenance,
 ): Promise<Character | null> {
   if (!(await isOwnedCampaign(ownerId, campaignId))) return null;
-  return prisma.character.create({ data: { ...data, campaignId } });
+  return prisma.character.create({
+    data: { ...data, campaignId, ...toProvenance(provenance) },
+  });
 }
 
 export async function updateCharacterForOwner(

@@ -37,6 +37,7 @@ export const assistantRouter = createTRPCRouter({
         campaignId: proposal.campaignId,
         action: proposal.action,
         entity: proposal.entity,
+        source: proposal.action === "create" ? proposal.source : undefined,
         outcome: result.ok ? "success" : "error",
         entityId: result.ok ? result.id : undefined,
         reason: result.ok ? undefined : result.reason,

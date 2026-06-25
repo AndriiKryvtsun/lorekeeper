@@ -36,6 +36,8 @@ export type ProposalAuditRecord = {
   action: string;
   entity: string;
   outcome: AssistantOutcome;
+  // Enrichment source for a tagged create ("srd" | "agent"); omitted otherwise. Non-sensitive.
+  source?: string;
   // The created/updated/deleted row id on a successful commit (non-sensitive).
   entityId?: string;
   // A coarse, non-sensitive reason (e.g. "not_found", "invalid_proposal", "no_proposal").

@@ -113,9 +113,13 @@ async function commitCreate(
   p: Extract<Proposal, { action: "create" }>,
 ): Promise<CommitResult> {
   const { campaignId } = p;
+  // Enrichment provenance (source/attribution) is persisted only for NPC/Character.
+  const provenance = { source: p.source, attribution: p.attribution };
   switch (p.entity) {
     case "npc":
-      return created(await createNpcForOwnedCampaign(ownerId, campaignId, p.fields));
+      return created(
+        await createNpcForOwnedCampaign(ownerId, campaignId, p.fields, provenance),
+      );
     case "location":
       return created(await createLocationForOwner(ownerId, campaignId, p.fields));
     case "item":
@@ -130,7 +134,9 @@ async function commitCreate(
     case "session":
       return created(await createSessionForOwner(ownerId, campaignId, p.fields));
     case "character":
-      return created(await createCharacterForOwner(ownerId, campaignId, p.fields));
+      return created(
+        await createCharacterForOwner(ownerId, campaignId, p.fields, provenance),
+      );
   }
 }
 

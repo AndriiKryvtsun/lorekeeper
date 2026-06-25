@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Campaign, NPC } from "@/app/generated/prisma/client";
+import { toProvenance, type EntityProvenance } from "@/lib/data/provenance";
 import { prisma } from "@/lib/prisma";
 import type { CreateCampaignInput, UpdateCampaignInput } from "@/lib/validation/campaign";
 import type { CreateNpcInput, UpdateNpcInput } from "@/lib/validation/npc";
@@ -76,6 +77,7 @@ export async function createNpcForOwnedCampaign(
   ownerId: string,
   campaignId: string,
   data: CreateNpcInput,
+  provenance?: EntityProvenance,
 ): Promise<NPC | null> {
   const owned = await prisma.campaign.findFirst({
     where: { id: campaignId, ownerId },
@@ -83,7 +85,9 @@ export async function createNpcForOwnedCampaign(
   });
   if (!owned) return null;
   // Parent comes from the path/owned campaign, never from the body.
-  return prisma.nPC.create({ data: { ...data, campaignId } });
+  return prisma.nPC.create({
+    data: { ...data, campaignId, ...toProvenance(provenance) },
+  });
 }
 
 export async function updateNpcForOwner(

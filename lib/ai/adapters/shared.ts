@@ -49,6 +49,20 @@ export function mapLlmError(error: unknown, providerId: string): never {
     });
   }
   if (APICallError.isInstance(error)) {
+    // Redacted diagnostic: the provider's HTTP status + its error RESPONSE body (the upstream
+    // error JSON, e.g. {"type":"not_found_error",...}). The response body contains no secret/
+    // prompt; we deliberately do NOT log the request or error.message (which may echo inputs).
+    console.warn(
+      JSON.stringify({
+        kind: "llm.api_error",
+        providerId,
+        status: error.statusCode,
+        body:
+          typeof error.responseBody === "string"
+            ? error.responseBody.slice(0, 300)
+            : undefined,
+      }),
+    );
     if (error.statusCode === 429) {
       throw new RateLimitError("LLM provider rate limited", {
         capability: CAPABILITY,

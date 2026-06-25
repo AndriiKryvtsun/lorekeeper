@@ -85,10 +85,13 @@ describe("commitProposal", () => {
       fields: { name: "Sera", status: "alive" },
     };
     expect(await commitProposal(OWNER, proposal)).toEqual({ ok: true, id: "n9" });
-    expect(campaigns.createNpcForOwnedCampaign).toHaveBeenCalledWith(OWNER, "c1", {
-      name: "Sera",
-      status: "alive",
-    });
+    // An untagged proposal forwards undefined provenance (4th arg) — still the one path.
+    expect(campaigns.createNpcForOwnedCampaign).toHaveBeenCalledWith(
+      OWNER,
+      "c1",
+      { name: "Sera", status: "alive" },
+      { source: undefined, attribution: undefined },
+    );
   });
 
   it("reports not_found when the create returns null (cross-user / missing campaign)", async () => {

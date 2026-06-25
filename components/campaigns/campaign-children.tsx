@@ -10,6 +10,7 @@ import type {
   Session,
 } from "@/app/generated/prisma/client";
 import { CrudSection } from "@/components/campaigns/crud-section";
+import { useEnrichmentCommit } from "@/components/enrichment/use-enrichment-commit";
 import { createCharacterSchema } from "@/lib/validation/character";
 import { createItemSchema } from "@/lib/validation/item";
 import { createLocationSchema } from "@/lib/validation/location";
@@ -61,6 +62,9 @@ export function CampaignChildren({
     del: api.character.delete.useMutation(),
   };
 
+  // Shared commit for enriched NPC/Character creates (unified path + cross-surface refresh).
+  const enrichCommit = useEnrichmentCommit(campaignId);
+
   const npcOptions = npcs.map((n) => ({ value: n.id, label: n.name }));
 
   return (
@@ -88,6 +92,30 @@ export function CampaignChildren({
         createFn={(v) => npcM.create.mutateAsync({ ...v, campaignId })}
         updateFn={(id, v) => npcM.update.mutateAsync({ id, data: v })}
         deleteFn={(id) => npcM.del.mutateAsync({ id })}
+        enrichment={{
+          kind: "npc",
+          campaignId,
+          offerSrd: true,
+          nameField: "name",
+          commit: async (values, prov) => {
+            const r = await enrichCommit.mutateAsync({
+              action: "create",
+              entity: "npc",
+              campaignId,
+              fields: values,
+              source: prov.source,
+              attribution: prov.attribution,
+            });
+            // Optimistic row; router.refresh() reconciles with the server shape.
+            return {
+              id: r.id,
+              campaignId,
+              ...values,
+              source: prov.source,
+              attribution: prov.attribution ?? null,
+            } as unknown as NPC;
+          },
+        }}
       />
 
       <CrudSection<Session, typeof createSessionSchema._input>
@@ -228,6 +256,30 @@ export function CampaignChildren({
         createFn={(v) => characterM.create.mutateAsync({ ...v, campaignId })}
         updateFn={(id, v) => characterM.update.mutateAsync({ id, data: v })}
         deleteFn={(id) => characterM.del.mutateAsync({ id })}
+        enrichment={{
+          kind: "character",
+          campaignId,
+          // The open SRD covers monsters/NPCs, not player characters — agent generation only.
+          offerSrd: false,
+          nameField: "name",
+          commit: async (values, prov) => {
+            const r = await enrichCommit.mutateAsync({
+              action: "create",
+              entity: "character",
+              campaignId,
+              fields: values,
+              source: prov.source,
+              attribution: prov.attribution,
+            });
+            return {
+              id: r.id,
+              campaignId,
+              ...values,
+              source: prov.source,
+              attribution: prov.attribution ?? null,
+            } as unknown as Character;
+          },
+        }}
       />
     </div>
   );

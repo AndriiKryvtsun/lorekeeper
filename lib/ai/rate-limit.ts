@@ -11,10 +11,13 @@ import { env } from "~/env";
 
 const PER_USER = { limit: 20, windowSec: 60 } as const;
 const PER_IP = { limit: 60, windowSec: 60 } as const;
+// Entity-enrichment propose procedures are more expensive (SRD/LLM); limit them tighter.
+const PROPOSE_PER_USER = { limit: 10, windowSec: 60 } as const;
 
 let redis: Redis | null = null;
 let userLimiter: Ratelimit | null = null;
 let ipLimiter: Ratelimit | null = null;
+let proposeLimiter: Ratelimit | null = null;
 
 if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
   redis = new Redis({
@@ -30,6 +33,11 @@ if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
     redis,
     limiter: Ratelimit.slidingWindow(PER_IP.limit, `${PER_IP.windowSec} s`),
     prefix: "assist:ip",
+  });
+  proposeLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(PROPOSE_PER_USER.limit, `${PROPOSE_PER_USER.windowSec} s`),
+    prefix: "enrich:user",
   });
 }
 
@@ -48,6 +56,18 @@ export async function enforceRateLimits(
   }
   if (userLimiter) {
     const r = await userLimiter.limit(userId);
+    if (!r.success) return { ok: false, reason: "user" };
+  }
+  return { ok: true };
+}
+
+// Per-user limit for the entity-enrichment propose procedures. Disabled (ok) when Upstash is
+// unconfigured (dev/test). Enforced BEFORE any SRD lookup or LLM call.
+export async function enforceProposeRateLimit(
+  userId: string,
+): Promise<RateLimitResult> {
+  if (proposeLimiter) {
+    const r = await proposeLimiter.limit(userId);
     if (!r.success) return { ok: false, reason: "user" };
   }
   return { ok: true };

@@ -17,6 +17,12 @@ export const env = createEnv({
     // Consumed only inside lib/sdk/server.
     PING_PROVIDER: z.string().min(1).default("a"),
     PING_FALLBACK: z.string().optional(),
+    // SRD lookup capability: active provider + optional comma-separated fallback, and the
+    // provider base URLs. Consumed only inside lib/sdk/server. Defaults to the public APIs.
+    SRD_PROVIDER: z.string().min(1).default("open5e"),
+    SRD_FALLBACK: z.string().optional(),
+    OPEN5E_BASE_URL: z.string().url().default("https://api.open5e.com"),
+    DND5EAPI_BASE_URL: z.string().url().default("https://www.dnd5eapi.co/api"),
     // LLM capability: active provider + model (+ optional comma-separated fallback).
     // Consumed only inside lib/ai. Switching provider/model is an env change, not code.
     AI_PROVIDER: z.string().min(1).default("anthropic"),
@@ -59,6 +65,10 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     PING_PROVIDER: process.env.PING_PROVIDER,
     PING_FALLBACK: process.env.PING_FALLBACK,
+    SRD_PROVIDER: process.env.SRD_PROVIDER,
+    SRD_FALLBACK: process.env.SRD_FALLBACK,
+    OPEN5E_BASE_URL: process.env.OPEN5E_BASE_URL,
+    DND5EAPI_BASE_URL: process.env.DND5EAPI_BASE_URL,
     AI_PROVIDER: process.env.AI_PROVIDER,
     AI_MODEL: process.env.AI_MODEL,
     AI_FALLBACK: process.env.AI_FALLBACK,

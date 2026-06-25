@@ -119,8 +119,15 @@ describe("NPC access requires an owned parent campaign", () => {
     p.campaign.findFirst.mockResolvedValue({ id: "c1" });
     p.nPC.create.mockResolvedValue({ id: "n1" });
     await createNpcForOwnedCampaign("user-1", "c1", { name: "Mara", status: "alive" });
+    // Provenance defaults to null (manual entry) when no enrichment source is supplied.
     expect(p.nPC.create).toHaveBeenCalledWith({
-      data: { name: "Mara", status: "alive", campaignId: "c1" },
+      data: {
+        name: "Mara",
+        status: "alive",
+        campaignId: "c1",
+        source: null,
+        attribution: null,
+      },
     });
   });
 });

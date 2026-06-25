@@ -5,10 +5,28 @@ import { useEffect, useRef, useState } from "react";
 
 import { ProposalCard } from "@/components/assistant/proposal-card";
 import { SafeMarkdown } from "@/components/assistant/safe-markdown";
+import { SourceChoice } from "@/components/enrichment/source-choice";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+// Payload of the `data-source-choice` stream part emitted for NPC/Character create intents.
+type SourceChoiceData = {
+  kind: "npc" | "character";
+  campaignId: string;
+  query: string;
+  recommended: "srd-likely" | "original" | "ambiguous";
+};
+
+// Starter prompts shown in the empty state. They double as guidance on how to phrase requests:
+// a grounded question, an SRD lookup (by creature name), and an original generation. Clicking
+// one fills the input so the user can edit and send.
+const EXAMPLE_PROMPTS = [
+  "Who are the NPCs in this campaign?",
+  "Add a goblin",
+  "Create an original NPC: a nervous harbor guard named Sela",
+] as const;
 
 type Props = {
   campaignId: string;
@@ -97,16 +115,37 @@ export default function AssistantPanel({
 
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {messages.length === 0 ? (
-          <EmptyState
-            title="Ask a question"
-            description="Answers come only from this campaign's own data. You can also ask me to create, update, or delete an entity."
-          />
+          <div className="space-y-4">
+            <EmptyState
+              title="Ask about your campaign"
+              description="I answer only from this campaign's own data. I can also add an NPC or character — name a known creature and I'll look it up in the open SRD, or describe an original one and I'll draft it. Nothing is saved until you confirm."
+            />
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Try asking:</p>
+              <ul className="space-y-1">
+                {EXAMPLE_PROMPTS.map((example) => (
+                  <li key={example}>
+                    <button
+                      type="button"
+                      onClick={() => setInput(example)}
+                      className="w-full rounded-md border border-border px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {example}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         ) : (
           messages.map((m) => {
             const text = m.parts
               .map((p) => (p.type === "text" ? p.text : ""))
               .join("");
             const proposals = m.parts.filter((p) => p.type === "data-proposal");
+            const sourceChoices = m.parts.filter(
+              (p) => p.type === "data-source-choice",
+            );
             return (
               <div
                 key={m.id}
@@ -128,6 +167,12 @@ export default function AssistantPanel({
                   <div key={i} className="mt-3">
                     <ProposalCard raw={(p as { data: unknown }).data} />
                   </div>
+                ))}
+                {sourceChoices.map((p, i) => (
+                  <SourceChoice
+                    key={`sc-${i}`}
+                    {...((p as { data: SourceChoiceData }).data)}
+                  />
                 ))}
               </div>
             );
@@ -154,7 +199,7 @@ export default function AssistantPanel({
           id="assistant-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about this campaign…"
+          placeholder="Ask a question, or add an NPC (e.g. “add a goblin”)…"
           autoComplete="off"
           disabled={busy}
         />
