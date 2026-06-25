@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -39,13 +40,17 @@ export default async function CampaignsPage() {
         />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {campaigns.map((campaign) => (
-            <li key={campaign.id}>
+          {campaigns.map((campaign, index) => (
+            <li
+              key={campaign.id}
+              className="lk-animate-item"
+              style={{ "--lk-index": index } as CSSProperties}
+            >
               <Link
                 href={`/campaigns/${campaign.id}`}
                 className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Card className="transition-colors hover:bg-accent">
+                <Card className="transition-[box-shadow,background-color] duration-[var(--duration-base)] hover:bg-accent hover:shadow-md">
                   <CardHeader>
                     <CardTitle>{campaign.title}</CardTitle>
                     <CardDescription>{campaign.system}</CardDescription>

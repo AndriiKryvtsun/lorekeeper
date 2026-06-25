@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AvatarUploader } from "@/components/account/avatar-uploader";
 import { DeleteAccountDialog } from "@/components/account/delete-account-dialog";
 import { ProfileForm } from "@/components/account/profile-form";
+import { SignOutButton } from "@/components/account/sign-out-button";
 import { SignOutOthersButton } from "@/components/account/sign-out-others-button";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { UpdatePasswordForm } from "@/components/auth/update-password-form";
@@ -42,7 +43,24 @@ export default async function AccountPage() {
       </Section>
 
       <Section title="Sessions">
-        <SignOutOthersButton />
+        <div className="space-y-1">
+          <p className="text-sm font-medium">This session</p>
+          <p className="text-sm text-muted-foreground">
+            Sign out on this device only. Your other devices stay signed in.
+          </p>
+          <div className="pt-1">
+            <SignOutButton />
+          </div>
+        </div>
+        <div className="space-y-1 border-t border-border pt-4">
+          <p className="text-sm font-medium">Other devices</p>
+          <p className="text-sm text-muted-foreground">
+            Sign out everywhere else. This device stays signed in.
+          </p>
+          <div className="pt-1">
+            <SignOutOthersButton />
+          </div>
+        </div>
       </Section>
 
       <Section title="Danger zone">

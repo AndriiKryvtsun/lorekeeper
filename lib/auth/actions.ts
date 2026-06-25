@@ -181,9 +181,12 @@ export async function updatePassword(
   redirect("/sign-in?reset=success");
 }
 
+// Sign out of the CURRENT session only (local scope). The user's other sessions/devices
+// stay signed in — this is deliberately distinct from the global "sign out everywhere"
+// (see `signOutOtherDevices`). Redirects to the sign-in page afterwards.
 export async function signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/sign-in");
 }
 

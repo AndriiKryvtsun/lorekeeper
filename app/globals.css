@@ -5,85 +5,115 @@
    the system preference). The @media block below is a no-JS fallback. */
 @custom-variant dark (&:is(.dark *));
 
-/* Design tokens — color, radius, typography, shadow. Spacing uses Tailwind's scale.
-   Components reference these via the Tailwind theme mapping below, never literals. */
+/* Design tokens — color, radius, typography, shadow, and motion. The visual identity is a
+   refined dark-fantasy/arcane direction expressed ENTIRELY through these tokens; components
+   reference them via the Tailwind theme mapping below, never literals. */
 :root {
   --radius: 0.625rem;
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Neutral surfaces carry a faint arcane (violet) tint so the palette reads cohesive. */
+  --background: oklch(0.99 0.004 295);
+  --foreground: oklch(0.18 0.02 295);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.18 0.02 295);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.18 0.02 295);
+  --primary: oklch(0.44 0.16 295);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --secondary: oklch(0.96 0.012 295);
+  --secondary-foreground: oklch(0.28 0.04 295);
+  --muted: oklch(0.96 0.008 295);
+  --muted-foreground: oklch(0.48 0.03 295);
+  --accent: oklch(0.95 0.02 295);
+  --accent-foreground: oklch(0.3 0.06 295);
+  --destructive: oklch(0.52 0.21 27);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.9 0.01 295);
+  --input: oklch(0.9 0.01 295);
+  --ring: oklch(0.5 0.17 295);
 
-  --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1);
+  /* Arcane accent + gradient. The gradient stops stay dark enough that the shared
+     --arcane-foreground (near-white) keeps AA contrast over the gradient/imagery. */
+  --arcane: oklch(0.44 0.16 295);
+  --arcane-foreground: oklch(0.985 0 0);
+  --arcane-from: oklch(0.4 0.15 295);
+  --arcane-to: oklch(0.42 0.17 330);
+  --gradient-arcane: linear-gradient(135deg, var(--arcane-from), var(--arcane-to));
+
+  /* Elevation scale. The glow is decorative arcane accent, never contrast-critical. */
+  --shadow-sm: 0 1px 2px 0 oklch(0.18 0.02 295 / 0.06);
+  --shadow-md: 0 4px 10px -2px oklch(0.18 0.02 295 / 0.1), 0 2px 4px -2px oklch(0.18 0.02 295 / 0.08);
+  --shadow-lg: 0 12px 28px -6px oklch(0.18 0.02 295 / 0.14), 0 4px 8px -4px oklch(0.18 0.02 295 / 0.1);
+  --shadow-glow: 0 0 0 1px oklch(0.5 0.17 295 / 0.12), 0 6px 24px -8px oklch(0.5 0.17 295 / 0.35);
+
+  /* Motion tokens. Durations are short; the motion layer animates transform/opacity only. */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
 }
 
+/* Dark mode is a first-class, independently tuned theme (not inverted light values). */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 0.1);
-  --input: oklch(1 0 0 / 0.15);
-  --ring: oklch(0.556 0 0);
+  --background: oklch(0.16 0.018 295);
+  --foreground: oklch(0.97 0.006 295);
+  --card: oklch(0.21 0.022 295);
+  --card-foreground: oklch(0.97 0.006 295);
+  --popover: oklch(0.21 0.022 295);
+  --popover-foreground: oklch(0.97 0.006 295);
+  --primary: oklch(0.74 0.14 295);
+  --primary-foreground: oklch(0.18 0.04 295);
+  --secondary: oklch(0.28 0.03 295);
+  --secondary-foreground: oklch(0.97 0.006 295);
+  --muted: oklch(0.27 0.025 295);
+  --muted-foreground: oklch(0.74 0.03 295);
+  --accent: oklch(0.32 0.05 295);
+  --accent-foreground: oklch(0.97 0.006 295);
+  --destructive: oklch(0.7 0.19 25);
+  --destructive-foreground: oklch(0.16 0.02 295);
+  --border: oklch(1 0 0 / 0.12);
+  --input: oklch(1 0 0 / 0.16);
+  --ring: oklch(0.66 0.16 295);
+
+  --arcane: oklch(0.74 0.14 295);
+  --arcane-foreground: oklch(0.985 0 0);
+  --arcane-from: oklch(0.4 0.15 295);
+  --arcane-to: oklch(0.42 0.17 330);
+
+  --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.4);
+  --shadow-md: 0 4px 10px -2px oklch(0 0 0 / 0.5), 0 2px 4px -2px oklch(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 28px -6px oklch(0 0 0 / 0.6), 0 4px 8px -4px oklch(0 0 0 / 0.5);
+  --shadow-glow: 0 0 0 1px oklch(0.66 0.16 295 / 0.25), 0 6px 28px -8px oklch(0.66 0.16 295 / 0.45);
 }
 
 /* No-JS fallback: honor the OS preference when no explicit theme class is set. */
 @media (prefers-color-scheme: dark) {
   :root:not(.light):not(.dark) {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --destructive-foreground: oklch(0.985 0 0);
-    --border: oklch(1 0 0 / 0.1);
-    --input: oklch(1 0 0 / 0.15);
-    --ring: oklch(0.556 0 0);
+    --background: oklch(0.16 0.018 295);
+    --foreground: oklch(0.97 0.006 295);
+    --card: oklch(0.21 0.022 295);
+    --card-foreground: oklch(0.97 0.006 295);
+    --popover: oklch(0.21 0.022 295);
+    --popover-foreground: oklch(0.97 0.006 295);
+    --primary: oklch(0.74 0.14 295);
+    --primary-foreground: oklch(0.18 0.04 295);
+    --secondary: oklch(0.28 0.03 295);
+    --secondary-foreground: oklch(0.97 0.006 295);
+    --muted: oklch(0.27 0.025 295);
+    --muted-foreground: oklch(0.74 0.03 295);
+    --accent: oklch(0.32 0.05 295);
+    --accent-foreground: oklch(0.97 0.006 295);
+    --destructive: oklch(0.7 0.19 25);
+    --destructive-foreground: oklch(0.16 0.02 295);
+    --border: oklch(1 0 0 / 0.12);
+    --input: oklch(1 0 0 / 0.16);
+    --ring: oklch(0.66 0.16 295);
   }
 }
 
 /* Map tokens into the Tailwind theme so utilities like bg-background, text-foreground,
-   rounded-lg, shadow-md resolve to the variables above. */
+   rounded-lg, shadow-md, bg-arcane resolve to the variables above. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -104,9 +134,17 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-arcane: var(--arcane);
+  --color-arcane-foreground: var(--arcane-foreground);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-spectral);
+
+  /* Refined type scale (display/heading sizes layered on Tailwind's base scale). */
+  --text-display: 2.75rem;
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -116,6 +154,9 @@
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
+  --shadow-glow: var(--shadow-glow);
+
+  --ease-out: var(--ease-out);
 }
 
 @layer base {
@@ -129,6 +170,14 @@
     font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   }
 
+  /* Cohesive identity: display headings use the serif display family, falling back to sans. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display), var(--font-sans), Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+
   /* Visible keyboard focus on all interactive elements. */
   :focus-visible {
     outline: 2px solid var(--color-ring);
@@ -136,21 +185,75 @@
   }
 }
 
-/* Honor reduced-motion: remove non-essential animation/transition. */
+/* Arcane gradient surface utility (decorative). Pair with text-arcane-foreground. */
+@utility bg-arcane-gradient {
+  background-image: var(--gradient-arcane);
+}
+
+/* ----------------------------------------------------------------------------------------
+   Motion layer. Subtle, fast entrance/transition/open animations plus hover/press
+   micro-interactions. Every animation uses transform/opacity only (no layout shift) and is
+   neutralized by the reduced-motion guard below. Radix open/close animations (dialog,
+   dropdown) use tw-animate-css `animate-in/out` utilities, which the same guard disables.
+   ---------------------------------------------------------------------------------------- */
+@keyframes lk-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lk-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lk-scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.lk-animate-rise { animation: lk-rise var(--duration-slow) var(--ease-out) both; }
+.lk-animate-fade { animation: lk-fade var(--duration-base) var(--ease-out) both; }
+.lk-animate-scale-in { animation: lk-scale-in var(--duration-base) var(--ease-out) both; }
+
+/* List-item entrance with a small stagger via an inline --lk-index custom property. */
+.lk-animate-item {
+  animation: lk-rise var(--duration-base) var(--ease-out) both;
+  animation-delay: calc(var(--lk-index, 0) * 40ms);
+}
+
+/* Back-compat alias for the original hero entrance class. */
+.hero-animate { animation: lk-rise var(--duration-slow) var(--ease-out) both; }
+
+/* Refined skeleton shimmer: a sheen swept across the placeholder using transform only. */
+@keyframes lk-shimmer {
+  100% { transform: translateX(100%); }
+}
+.lk-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+.lk-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(1 0 0 / 0.12),
+    transparent
+  );
+  animation: lk-shimmer 1.6s var(--ease-in-out) infinite;
+}
+
+/* Honor reduced-motion: neutralize all animation/transition (incl. tw-animate-css and Radix
+   data-state animations). This is the single source of truth for the motion "off" variant. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 }
-
-/* Hero entrance motion. Automatically disabled by the reduced-motion rule above. */
-@keyframes hero-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-.hero-animate { animation: hero-rise 600ms ease-out both; }

@@ -1,20 +1,21 @@
-import { UserCircle } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { ThemeToggle } from "@/components/theme-toggle";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { UserMenu } from "@/components/user-menu";
 
 // Responsive authenticated app shell: skip link + banner header, primary nav, and the
-// main content region. Semantic landmarks (header/banner, nav, main) are explicit.
-// `displayName` (when set) labels the account link in the header.
+// main content region. Semantic landmarks (header/banner, nav, main) are explicit. The
+// header surfaces the signed-in user via an accessible avatar dropdown (UserMenu).
 export function AppShell({
   children,
   displayName,
+  email,
+  avatarUrl,
 }: {
   children: ReactNode;
   displayName?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
 }) {
   return (
     <>
@@ -27,38 +28,35 @@ export function AppShell({
       </a>
 
       <div className="flex min-h-full flex-col">
-        <header className="border-b border-border">
+        <header className="border-b border-border bg-background/80 backdrop-blur">
           <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
-            <Link href="/" className="font-semibold">
+            <Link
+              href="/"
+              className="font-display text-lg font-semibold tracking-tight"
+            >
               LoreKeeper
             </Link>
             <nav aria-label="Primary" className="flex items-center gap-1">
               <Link
                 href="/campaigns"
-                className="rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 Campaigns
               </Link>
-              <Link
-                href="/account"
-                aria-label="Account settings"
-                title="Account settings"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "sm" }),
-                  "gap-2",
-                )}
-              >
-                <UserCircle aria-hidden className="size-4" />
-                {displayName ? (
-                  <span className="max-w-[14ch] truncate">{displayName}</span>
-                ) : null}
-              </Link>
-              <ThemeToggle />
+              <UserMenu
+                displayName={displayName}
+                email={email}
+                avatarUrl={avatarUrl}
+              />
             </nav>
           </div>
         </header>
 
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="lk-animate-fade mx-auto w-full max-w-6xl flex-1 px-4 py-6"
+        >
           {children}
         </main>
       </div>

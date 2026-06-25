@@ -30,6 +30,8 @@ const {
   signInWithPassword,
   resetPasswordForEmail,
   updatePassword,
+  signOut,
+  signOutOtherDevices,
 } = await import("@/lib/auth/actions");
 
 const getCurrentUserMock = getCurrentUser as unknown as ReturnType<typeof vi.fn>;
@@ -131,6 +133,37 @@ describe("reset gating", () => {
     ).catch(() => {}); // redirect throws
     expect(auth.updateUser).toHaveBeenCalledWith({ password: "password1" });
     expect(auth.signOut).toHaveBeenCalledWith({ scope: "global" });
+  });
+});
+
+describe("sign out of the current session (local scope)", () => {
+  it("revokes only the current session and redirects to sign-in", async () => {
+    let redirectedTo: string | undefined;
+    await signOut().catch((e: Error) => {
+      redirectedTo = e.message.replace("REDIRECT:", "");
+    });
+    // Local scope: the user's other sessions are NOT revoked.
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(auth.signOut).not.toHaveBeenCalledWith({ scope: "global" });
+    expect(auth.signOut).not.toHaveBeenCalledWith({ scope: "others" });
+    expect(redirectedTo).toBe("/sign-in");
+  });
+
+  it("does not touch owned data or the admin API (presentation-only invariant)", async () => {
+    // signOut only calls the auth client; it performs no data mutation. This guards that
+    // the new affordance changes no data/security behavior.
+    await signOut().catch(() => {});
+    expect(auth.signUp).not.toHaveBeenCalled();
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("sign out other devices stays global/others (unchanged)", () => {
+  it("revokes other sessions only, distinct from local sign out", async () => {
+    getCurrentUserMock.mockResolvedValue({ id: "u1" });
+    const res = await signOutOtherDevices();
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "others" });
+    expect(res.ok).toBe(true);
   });
 });
 

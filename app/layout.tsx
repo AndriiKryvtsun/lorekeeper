@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Spectral } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 
@@ -16,6 +16,14 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Serif display family for headings — anchors the dark-fantasy/arcane identity. Exposed as
+// the `--font-spectral` variable and mapped to the `--font-display` token in globals.css.
+const spectral = Spectral({
+  variable: "--font-spectral",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 // App-wide metadata. The whole app is `noindex` by default; only the home page (`/`) opts
@@ -40,7 +48,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${spectral.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider

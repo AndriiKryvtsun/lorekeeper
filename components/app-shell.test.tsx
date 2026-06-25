@@ -38,13 +38,14 @@ describe("app shell landmarks and skip link", () => {
     expect(screen.getByRole("main")).toHaveAttribute("id", "main");
   });
 
-  it("provides an accessible account-settings link in the primary nav", () => {
+  it("provides an accessible user-menu trigger in the primary nav", () => {
     renderShell();
-    const account = screen.getByRole("link", { name: /account settings/i });
-    expect(account).toHaveAttribute("href", "/account");
+    expect(
+      screen.getByRole("button", { name: /open user menu/i }),
+    ).toBeInTheDocument();
   });
 
-  it("labels the account link with the display name when provided", () => {
+  it("shows the display name in the header when provided", () => {
     render(
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         <AppShell displayName="Aria Stormborn">
@@ -52,7 +53,7 @@ describe("app shell landmarks and skip link", () => {
         </AppShell>
       </ThemeProvider>,
     );
-    const account = screen.getByRole("link", { name: /account settings/i });
-    expect(account).toHaveTextContent("Aria Stormborn");
+    const trigger = screen.getByRole("button", { name: /open user menu/i });
+    expect(trigger).toHaveTextContent("Aria Stormborn");
   });
 });

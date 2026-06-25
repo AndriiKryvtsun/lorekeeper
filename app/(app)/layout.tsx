@@ -15,13 +15,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!user) {
     redirect("/sign-in");
   }
-  // The account link in the header is labelled with the user's display name when set.
+  // The header user menu shows the user's avatar + display name (read-only profile data).
   const profile = await getProfile(user.id);
   // The assistant launcher lives at the layout root (sibling of the shell) so it persists
   // across in-app navigation and overlays the page without being inside the main landmark.
   return (
     <>
-      <AppShell displayName={profile?.displayName ?? null}>{children}</AppShell>
+      <AppShell
+        displayName={profile?.displayName ?? null}
+        email={user.email ?? null}
+        avatarUrl={profile?.avatarUrl ?? null}
+      >
+        {children}
+      </AppShell>
       <AssistantWidget />
     </>
   );
