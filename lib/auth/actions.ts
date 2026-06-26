@@ -103,29 +103,6 @@ export async function signInWithPassword(
   redirect("/campaigns");
 }
 
-// Send a magic link (secondary method).
-export async function signInWithMagicLink(
-  _prev: AuthActionState,
-  formData: FormData,
-): Promise<AuthActionState> {
-  const parsed = resetRequestSchema.safeParse({ email: formData.get("email") });
-  if (!parsed.success) {
-    return { ok: false, error: firstError(parsed.error.issues) };
-  }
-  const token = captchaToken(formData);
-  if (!token) return { ok: false, error: CAPTCHA_REQUIRED };
-
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.signInWithOtp({
-    email: parsed.data.email,
-    options: {
-      emailRedirectTo: `${await baseUrl()}/auth/callback`,
-      captchaToken: token,
-    },
-  });
-  return { ok: true, message: GENERIC_CHECK_EMAIL };
-}
-
 // Request a password reset. Enumeration-safe: identical generic result for any email.
 export async function resetPasswordForEmail(
   _prev: AuthActionState,

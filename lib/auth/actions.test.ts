@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const auth = {
   signUp: vi.fn(),
   signInWithPassword: vi.fn(),
-  signInWithOtp: vi.fn(),
   resetPasswordForEmail: vi.fn(),
   updateUser: vi.fn(),
   signOut: vi.fn(),

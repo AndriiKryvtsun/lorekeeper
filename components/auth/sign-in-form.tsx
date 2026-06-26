@@ -11,7 +11,6 @@ import { EmailField } from "@/components/auth/email-field";
 import { PasswordField } from "@/components/auth/password-field";
 import { Button } from "@/components/ui/button";
 import {
-  signInWithMagicLink,
   signInWithPassword,
   type AuthActionState,
 } from "@/lib/auth/actions";
@@ -21,15 +20,10 @@ const initial: AuthActionState = { ok: false };
 
 export function SignInForm() {
   const [state, dispatch, pending] = useActionState(signInWithPassword, initial);
-  const [magic, dispatchMagic, magicPending] = useActionState(
-    signInWithMagicLink,
-    initial,
-  );
   const [token, setToken] = useState("");
   const {
     register,
     handleSubmit,
-    getValues,
     formState: { errors },
   } = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
@@ -44,13 +38,6 @@ export function SignInForm() {
     startTransition(() => dispatch(fd));
   });
 
-  const onMagicLink = () => {
-    const fd = new FormData();
-    fd.set("email", getValues("email"));
-    fd.set("captchaToken", token);
-    startTransition(() => dispatchMagic(fd));
-  };
-
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
       <EmailField error={errors.email?.message} register={register("email")} />
@@ -61,19 +48,11 @@ export function SignInForm() {
         register={register("password")}
       />
       <CaptchaField onToken={setToken} />
-      <AuthStatus error={state.error ?? magic.error} message={magic.message} />
+      <AuthStatus error={state.error} />
       <Button type="submit" disabled={pending} className="w-full">
         Sign in
       </Button>
-      <div className="flex items-center justify-between text-sm">
-        <button
-          type="button"
-          onClick={onMagicLink}
-          disabled={magicPending}
-          className="underline underline-offset-4"
-        >
-          Send a magic link instead
-        </button>
+      <div className="flex justify-end text-sm">
         <Link href="/forgot-password" className="underline underline-offset-4">
           Forgot password?
         </Link>
