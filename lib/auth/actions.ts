@@ -15,6 +15,7 @@ import {
   signInSchema,
   signUpSchema,
 } from "@/lib/validation/auth";
+import { env } from "~/env";
 
 // Generic, enumeration-safe messages. We NEVER reveal whether an email exists, and never
 // log credentials, tokens, or existence signals.
@@ -38,6 +39,10 @@ function captchaToken(formData: FormData): string {
 }
 
 async function baseUrl(): Promise<string> {
+  // Prefer the configured canonical origin so email confirmation/reset links always use the
+  // production domain (and match Supabase's allowed Redirect URLs), regardless of which Vercel
+  // alias served the request. Fall back to request headers, then localhost for local dev.
+  if (env.NEXT_PUBLIC_SITE_URL) return env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "");
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "https";
