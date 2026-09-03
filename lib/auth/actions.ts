@@ -78,6 +78,17 @@ export async function signUp(
   // A genuine error here is captcha/rate-limit/policy — NOT existence (Supabase does not
   // error for an existing email). Surface a generic, existence-agnostic message.
   if (error) {
+    // Redacted diagnostic: status/code/message from Supabase (captcha, email-rate-limit,
+    // signups-disabled, etc.). Contains no email/password/token and no existence signal —
+    // Supabase does not error for an existing email. Client still gets the generic message.
+    console.error(
+      JSON.stringify({
+        kind: "auth.signup_error",
+        status: error.status,
+        code: error.code,
+        message: error.message,
+      }),
+    );
     return { ok: false, error: "Could not complete sign-up. Please try again." };
   }
   return { ok: true, message: GENERIC_CHECK_EMAIL };

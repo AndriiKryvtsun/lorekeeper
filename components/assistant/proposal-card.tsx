@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { envelopeErrorMessage } from "@/lib/validation/assistant-actions";
 import {
   parseProposal,
   proposalTitle,
@@ -13,13 +14,24 @@ import { api } from "~/trpc/react";
 
 // Renders an assistant write-proposal as a confirmable card. NOTHING is written until the
 // user clicks Confirm, which calls the server-side commit mutation; Cancel discards it. The
-// `raw` value is the untrusted `data-proposal` stream part, validated here before display.
-export function ProposalCard({ raw }: { raw: unknown }) {
+// `raw` value is the untrusted proposal from the envelope, re-validated here before display.
+export function ProposalCard({
+  raw,
+  generated = [],
+}: {
+  raw: unknown;
+  // Fields the assistant chose itself under delegation, labelled so the user sees what it
+  // filled in before confirming.
+  generated?: string[];
+}) {
   const proposal = parseProposal(raw);
   const [state, setState] = useState<"pending" | "done" | "cancelled">("pending");
   const utils = api.useUtils();
   const commit = api.assistant.commitProposal.useMutation({
-    onSuccess: async (_data, variables) => {
+    // The commit resolves with an ActionEnvelope for EVERY outcome, so a refusal is a resolved
+    // value, not a rejection. Only a `success` envelope means the write happened.
+    onSuccess: async (envelope, variables) => {
+      if (envelope.outcome !== "success") return;
       setState("done");
       await invalidateFor(utils, variables.entity, variables.campaignId);
     },
@@ -47,13 +59,13 @@ export function ProposalCard({ raw }: { raw: unknown }) {
     );
   }
 
-  const errorMessage = commit.isError
-    ? commit.error.data?.code === "NOT_FOUND"
-      ? "That campaign or entity could not be found."
-      : commit.error.data?.code === "BAD_REQUEST"
-        ? "The proposed change was not valid."
-        : "The change could not be applied. Please try again."
-    : null;
+  // The normalised message comes from the envelope; a rejected mutation (auth, network) falls
+  // back to a generic line. Either way the card offers nothing it did not actually write.
+  const errorMessage = commit.data
+    ? envelopeErrorMessage(commit.data)
+    : commit.isError
+      ? "The change could not be applied. Please try again."
+      : null;
 
   return (
     <Card aria-label="Proposed change">
@@ -62,10 +74,15 @@ export function ProposalCard({ raw }: { raw: unknown }) {
       </CardHeader>
       <CardContent className="text-sm">
         <dl className="space-y-1">
-          {summaryRows(proposal).map(([label, value]) => (
+{summaryRows(proposal).map(([label, value]) => (
             <div key={label} className="flex gap-2">
               <dt className="font-medium text-muted-foreground">{label}:</dt>
-              <dd className="whitespace-pre-wrap">{value}</dd>
+              <dd className="whitespace-pre-wrap">
+                {value}
+                {generated.includes(label) ? (
+                  <span className="ml-1 text-xs text-muted-foreground">(generated)</span>
+                ) : null}
+              </dd>
             </div>
           ))}
         </dl>

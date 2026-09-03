@@ -11,6 +11,7 @@ import type {
 } from "@/app/generated/prisma/client";
 import { CrudSection } from "@/components/campaigns/crud-section";
 import { useEnrichmentCommit } from "@/components/enrichment/use-enrichment-commit";
+import { envelopeErrorMessage } from "@/lib/validation/assistant-actions";
 import { createCharacterSchema } from "@/lib/validation/character";
 import { createItemSchema } from "@/lib/validation/item";
 import { createLocationSchema } from "@/lib/validation/location";
@@ -106,9 +107,16 @@ export function CampaignChildren({
               source: prov.source,
               attribution: prov.attribution,
             });
+            // A refused write resolves with an error envelope; reject so the draft review
+            // surfaces it instead of optimistically adding a row that was never written.
+            if (r.outcome !== "success") {
+              throw new Error(
+                envelopeErrorMessage(r) ?? "The change could not be applied.",
+              );
+            }
             // Optimistic row; router.refresh() reconciles with the server shape.
             return {
-              id: r.id,
+              id: r.entityId,
               campaignId,
               ...values,
               source: prov.source,
@@ -271,8 +279,13 @@ export function CampaignChildren({
               source: prov.source,
               attribution: prov.attribution,
             });
+            if (r.outcome !== "success") {
+              throw new Error(
+                envelopeErrorMessage(r) ?? "The change could not be applied.",
+              );
+            }
             return {
-              id: r.id,
+              id: r.entityId,
               campaignId,
               ...values,
               source: prov.source,

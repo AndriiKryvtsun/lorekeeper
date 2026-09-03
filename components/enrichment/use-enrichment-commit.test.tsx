@@ -7,7 +7,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const invalidateNpc = vi.fn();
 const invalidateCharacter = vi.fn();
 const refresh = vi.fn();
-let capturedOptions: { onSuccess?: () => Promise<void> | void } = {};
+type Envelope = { outcome: string };
+let capturedOptions: {
+  onSuccess?: (envelope: Envelope) => Promise<void> | void;
+} = {};
 
 vi.mock("~/trpc/react", () => ({
   api: {
@@ -41,10 +44,21 @@ describe("useEnrichmentCommit", () => {
     renderHook(() => useEnrichmentCommit("c1"));
     expect(capturedOptions.onSuccess).toBeTypeOf("function");
 
-    await capturedOptions.onSuccess!();
+    await capturedOptions.onSuccess!({ outcome: "success" });
 
     expect(invalidateNpc).toHaveBeenCalledWith({ campaignId: "c1" });
     expect(invalidateCharacter).toHaveBeenCalledWith({ campaignId: "c1" });
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT invalidate or refresh when the commit was refused", async () => {
+    renderHook(() => useEnrichmentCommit("c1"));
+    // The mutation resolves with an error envelope rather than rejecting, so a refusal must not
+    // be mistaken for a write.
+    await capturedOptions.onSuccess!({ outcome: "operation_error" });
+
+    expect(invalidateNpc).not.toHaveBeenCalled();
+    expect(invalidateCharacter).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

@@ -39,39 +39,60 @@ vi.mock("@/lib/data/sessions", () => ({
 const campaigns = await import("@/lib/data/campaigns");
 const items = await import("@/lib/data/items");
 const sessions = await import("@/lib/data/sessions");
-const { commitProposal, resolveEntityIdByName } = await import("@/lib/data/proposal");
+const { commitProposal, resolveEntityTarget } = await import("@/lib/data/proposal");
 
 const m = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
 const OWNER = "user-1";
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("resolveEntityIdByName", () => {
+describe("resolveEntityTarget", () => {
   it("resolves a unique case-insensitive name to its id", async () => {
     m(campaigns.listNpcsForOwnedCampaign).mockResolvedValue([
       { id: "n1", name: "Bob" },
       { id: "n2", name: "Sara" },
     ]);
-    expect(await resolveEntityIdByName(OWNER, "c1", "npc", "bob")).toBe("n1");
+    expect(await resolveEntityTarget(OWNER, "c1", "npc", "bob")).toEqual({
+      kind: "one",
+      id: "n1",
+    });
   });
 
-  it("returns null for zero matches and for ambiguous (multiple) matches", async () => {
+  it("reports `none` for zero matches", async () => {
     m(campaigns.listNpcsForOwnedCampaign).mockResolvedValue([
       { id: "n1", name: "Bob" },
-      { id: "n2", name: "Bob" },
     ]);
-    expect(await resolveEntityIdByName(OWNER, "c1", "npc", "bob")).toBeNull();
-    expect(await resolveEntityIdByName(OWNER, "c1", "npc", "nobody")).toBeNull();
+    expect(await resolveEntityTarget(OWNER, "c1", "npc", "nobody")).toEqual({
+      kind: "none",
+    });
   });
 
-  it("returns null when the campaign is not owned (list is null)", async () => {
+  it("reports `many` with the candidate names for an ambiguous match", async () => {
+    m(campaigns.listNpcsForOwnedCampaign).mockResolvedValue([
+      { id: "n1", name: "Bob" },
+      { id: "n2", name: "bob" },
+      { id: "n3", name: "Sara" },
+    ]);
+    expect(await resolveEntityTarget(OWNER, "c1", "npc", "bob")).toEqual({
+      kind: "many",
+      candidates: ["Bob", "bob"],
+    });
+  });
+
+  it("reports `none` when the campaign is not owned (no existence leak)", async () => {
     m(campaigns.listNpcsForOwnedCampaign).mockResolvedValue(null);
-    expect(await resolveEntityIdByName(OWNER, "c1", "npc", "bob")).toBeNull();
+    // Indistinguishable from a name that simply matches nothing.
+    expect(await resolveEntityTarget(OWNER, "c1", "npc", "bob")).toEqual({
+      kind: "none",
+    });
   });
 
   it("matches sessions by their title", async () => {
     m(sessions.listSessionsForOwner).mockResolvedValue([{ id: "s1", title: "Intro" }]);
-    expect(await resolveEntityIdByName(OWNER, "c1", "session", "intro")).toBe("s1");
+    expect(await resolveEntityTarget(OWNER, "c1", "session", "intro")).toEqual({
+      kind: "one",
+      id: "s1",
+    });
   });
 });
 

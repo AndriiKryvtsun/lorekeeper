@@ -57,7 +57,61 @@ describe("vendor/AI-SDK imports are confined to lib/ai", () => {
   });
 });
 
-describe("provider API keys are referenced only in lib/ai (+ src/env.ts)", () => {
+describe("the action registry's isomorphic half stays client-safe", () => {
+  // The chat UI imports the envelope, the action vocabulary, and the payload types from
+  // `lib/validation/assistant-actions`, so that module must not reach the server boundary:
+  // no `server-only`, and nothing under `lib/data` (which constructs Prisma).
+  const CLIENT_SAFE = [
+    join("lib", "validation", "assistant-actions.ts"),
+    join("lib", "validation", "assistant-proposal.ts"),
+  ];
+
+  for (const relative of CLIENT_SAFE) {
+    it(`${norm(relative)} imports neither server-only nor lib/data`, () => {
+      const source = readFileSync(join(ROOT, relative), "utf8");
+      expect(source).not.toMatch(/["']server-only["']/);
+      expect(source).not.toMatch(/@\/lib\/data\//);
+    });
+  }
+});
+
+describe("the assistant reaches a write ONLY through the action registry", () => {
+  // Every entity write the assistant can perform is bound in lib/data/action-registry.ts. The
+  // assistant pipeline and the commit path must therefore never import an entity write function
+  // themselves — otherwise a second, unregistered path to a write would exist. (The per-entity
+  // tRPC CRUD routers still import them directly: those are the form surfaces, one procedure per
+  // entity, not an action/entity dispatch table.)
+  const WRITE_FN =
+    /\b(create|update|delete)(Npc|Location|Item|Session|Character|Campaign)For(Owner|OwnedCampaign)\b/;
+
+  const assistantPath = allFiles.filter((f) => {
+    const n = norm(f);
+    if (n.endsWith("/lib/data/action-registry.ts")) return false;
+    return n.includes("/lib/ai/") || n.endsWith("/lib/data/proposal.ts");
+  });
+
+  it("covers the expected files (sanity check)", () => {
+    expect(assistantPath.length).toBeGreaterThan(5);
+    expect(assistantPath.map(norm).some((f) => f.endsWith("/lib/data/proposal.ts"))).toBe(
+      true,
+    );
+  });
+
+  it("no assistant-path file names an entity write function", () => {
+    const offenders = assistantPath.filter((f) => WRITE_FN.test(readFileSync(f, "utf8")));
+    expect(offenders.map(norm)).toEqual([]);
+  });
+
+  it("the registry DOES bind entity write functions (sanity check)", () => {
+    const registry = readFileSync(
+      join(ROOT, "lib", "data", "action-registry.ts"),
+      "utf8",
+    );
+    expect(WRITE_FN.test(registry)).toBe(true);
+  });
+});
+
+describe("the action registry's isomorphic half stays client-safe", () => {
   for (const key of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"]) {
     it(`does not reference ${key} outside lib/ai or src/env.ts`, () => {
       const offenders = allFiles.filter((f) => {

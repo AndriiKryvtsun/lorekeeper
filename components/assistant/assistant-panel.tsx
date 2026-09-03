@@ -10,14 +10,83 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  ENVELOPE_PART,
+  isRetryableEnvelope,
+  type ActionEnvelope,
+  type PendingAction,
+} from "@/lib/validation/assistant-actions";
+import { MAX_HISTORY_TURNS } from "@/lib/validation/assistant";
 
-// Payload of the `data-source-choice` stream part emitted for NPC/Character create intents.
+// The enrichment source choice arrives as a clarification OPTION rather than its own outcome:
+// it is a question with a fixed set of answers and nothing confirmable. Its payload is what
+// SourceChoice already consumes, so the draft-review flow below it is unchanged.
 type SourceChoiceData = {
   kind: "npc" | "character";
   campaignId: string;
   query: string;
   recommended: "srd-likely" | "original" | "ambiguous";
 };
+
+const ENRICHMENT_SOURCE_OPTION = "enrichment-source";
+
+// The unfinished write to continue, taken from the MOST RECENT envelope. Deriving it from the
+// messages rather than storing it means a proposal, a success, or an error clears it on its own —
+// there is no stale client state to resurrect an abandoned write.
+function pendingFromMessages(
+  messages: { parts: { type: string; data?: unknown }[] }[],
+): PendingAction | undefined {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const envelopes = messages[i]!.parts.filter((p) => p.type === ENVELOPE_PART);
+    const latest = envelopes.at(-1);
+    if (!latest) continue;
+    const envelope = latest.data as ActionEnvelope;
+    return envelope.outcome === "clarification" ? envelope.pending : undefined;
+  }
+  return undefined;
+}
+
+// The write path's envelope, carried by the one typed stream part. Rendering is driven by
+// `outcome` — never by parsing the assistant's text.
+function EnvelopeView({ envelope }: { envelope: ActionEnvelope }) {
+  switch (envelope.outcome) {
+    case "proposal":
+      return (
+        <div className="mt-3">
+          <ProposalCard raw={envelope.proposal} generated={envelope.generated} />
+        </div>
+      );
+    case "clarification": {
+      const source = envelope.options?.find((o) => o.id === ENRICHMENT_SOURCE_OPTION);
+      // The question itself is the assistant's text; only an option set needs rendering.
+      if (!source) return null;
+      return <SourceChoice {...(source.data as unknown as SourceChoiceData)} />;
+    }
+    case "success":
+      return (
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
+          {envelope.entity} “{envelope.title}” was saved.
+        </p>
+      );
+    case "validation_error":
+    case "operation_error":
+    case "transport_error":
+      // The message is already shown as the assistant's text; this is the accessible alert.
+      return (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          {envelope.message}
+        </p>
+      );
+    default:
+      // An outcome this client does not know: show a generic error and offer nothing
+      // confirmable. Never treated as success.
+      return (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          Something went wrong, so nothing was changed.
+        </p>
+      );
+  }
+}
 
 // Starter prompts shown in the empty state. They double as guidance on how to phrase requests:
 // a grounded question, an SRD lookup (by creature name), and an original generation. Clicking
@@ -47,7 +116,7 @@ export default function AssistantPanel({
   onClose,
   onReplyComplete,
 }: Props) {
-  const { messages, sendMessage, status, error, clearError } = useChat();
+  const { messages, sendMessage, regenerate, status, error, clearError } = useChat();
   const [input, setInput] = useState("");
   // Completion-only announcement: SR users hear the finished reply once, not per token.
   const [announcement, setAnnouncement] = useState("");
@@ -83,7 +152,23 @@ export default function AssistantPanel({
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
-    void sendMessage({ text }, { body: { campaignId } });
+    // Send a BOUNDED tail of the conversation, plus this message. The server needs the recent
+    // turns so an answer to a clarification can continue the same write, but it rejects an
+    // over-long list — so the window is capped here and the panel keeps showing everything.
+    const history = [
+      ...messages.slice(-MAX_HISTORY_TURNS).map((m) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
+      })),
+      { role: "user", content: text },
+    ];
+    // If the last reply asked a question, send back the write it belongs to so this answer
+    // continues it instead of being classified afresh.
+    const pending = pendingFromMessages(messages);
+    void sendMessage(
+      { text },
+      { body: { campaignId, history, ...(pending ? { pending } : {}) } },
+    );
   }
 
   return (
@@ -142,10 +227,11 @@ export default function AssistantPanel({
             const text = m.parts
               .map((p) => (p.type === "text" ? p.text : ""))
               .join("");
-            const proposals = m.parts.filter((p) => p.type === "data-proposal");
-            const sourceChoices = m.parts.filter(
-              (p) => p.type === "data-source-choice",
-            );
+            // Every write-path outcome arrives as this one part.
+            const envelopes = m.parts
+              .filter((p) => p.type === ENVELOPE_PART)
+              .map((p) => (p as { data: ActionEnvelope }).data);
+            const retryable = envelopes.some(isRetryableEnvelope);
             return (
               <div
                 key={m.id}
@@ -163,17 +249,21 @@ export default function AssistantPanel({
                 ) : (
                   <SafeMarkdown>{text}</SafeMarkdown>
                 )}
-                {proposals.map((p, i) => (
-                  <div key={i} className="mt-3">
-                    <ProposalCard raw={(p as { data: unknown }).data} />
-                  </div>
+                {envelopes.map((envelope, i) => (
+                  <EnvelopeView key={`env-${i}`} envelope={envelope} />
                 ))}
-                {sourceChoices.map((p, i) => (
-                  <SourceChoice
-                    key={`sc-${i}`}
-                    {...((p as { data: SourceChoiceData }).data)}
-                  />
-                ))}
+                {retryable ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    disabled={busy}
+                    onClick={() => void regenerate()}
+                  >
+                    Try again
+                  </Button>
+                ) : null}
               </div>
             );
           })

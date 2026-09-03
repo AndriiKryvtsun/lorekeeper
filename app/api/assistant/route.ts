@@ -29,27 +29,46 @@ function readCampaignId(raw: unknown): string {
   return "";
 }
 
-// Extract the latest user message text from the useChat request body.
-function readQuestion(raw: unknown): string {
-  if (!raw || typeof raw !== "object" || !("messages" in raw)) return "";
-  const messages = (raw as { messages?: unknown }).messages;
-  if (!Array.isArray(messages)) return "";
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const m = messages[i];
-    if (!m || typeof m !== "object" || (m as { role?: unknown }).role !== "user") {
-      continue;
-    }
-    const parts = (m as { parts?: unknown }).parts;
-    if (Array.isArray(parts)) {
-      return parts
-        .filter((p) => p && typeof p === "object" && (p as { type?: unknown }).type === "text")
-        .map((p) => String((p as { text?: unknown }).text ?? ""))
-        .join("\n");
-    }
-    const content = (m as { content?: unknown }).content;
-    if (typeof content === "string") return content;
+// The text of one useChat message, whichever shape it arrives in (parts, or a plain string).
+function readContent(message: object): string {
+  const parts = (message as { parts?: unknown }).parts;
+  if (Array.isArray(parts)) {
+    return parts
+      .filter(
+        (p) => p && typeof p === "object" && (p as { type?: unknown }).type === "text",
+      )
+      .map((p) => String((p as { text?: unknown }).text ?? ""))
+      .join("\n");
   }
-  return "";
+  const content = (message as { content?: unknown }).content;
+  return typeof content === "string" ? content : "";
+}
+
+// The unfinished write the client echoed back, if any. Read as-is and validated by the schema.
+function readPending(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return undefined;
+  return (raw as { pending?: unknown }).pending;
+}
+
+// Extract the conversation from the request body, oldest first. The client sends a bounded
+// `history` (see MAX_HISTORY_TURNS); `messages` is the useChat default and is used when it does
+// not. Only user and assistant turns are kept — a forged role or a tool part is dropped here
+// rather than being validated into the pipeline. The count is bounded by the schema.
+function readMessages(raw: unknown): { role: string; content: string }[] {
+  if (!raw || typeof raw !== "object") return [];
+  const body = raw as { history?: unknown; messages?: unknown };
+  const source = Array.isArray(body.history) ? body.history : body.messages;
+  if (!Array.isArray(source)) return [];
+  return source
+    .filter((m): m is object => Boolean(m) && typeof m === "object")
+    .filter((m) => {
+      const role = (m as { role?: unknown }).role;
+      return role === "user" || role === "assistant";
+    })
+    .map((m) => ({
+      role: String((m as { role?: unknown }).role),
+      content: readContent(m),
+    }));
 }
 
 export async function POST(req: Request) {
@@ -102,7 +121,8 @@ export async function POST(req: Request) {
 
   const parsed = assistantInputSchema.safeParse({
     campaignId: readCampaignId(raw),
-    question: readQuestion(raw),
+    messages: readMessages(raw),
+    pending: readPending(raw),
   });
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
@@ -112,7 +132,8 @@ export async function POST(req: Request) {
     return await runAssistant({
       user,
       campaignId: parsed.data.campaignId,
-      question: parsed.data.question,
+      messages: parsed.data.messages,
+      pending: parsed.data.pending,
       signal: req.signal,
     });
   } catch (error) {

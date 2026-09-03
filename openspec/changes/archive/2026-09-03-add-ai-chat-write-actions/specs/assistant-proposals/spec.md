@@ -1,14 +1,4 @@
-# assistant-proposals
-
-## Purpose
-
-Enable the campaign assistant to propose create/update/delete changes to campaign entities
-based on the user's own message, while keeping a human in the loop: the model only proposes,
-the user confirms, and writes happen through the existing owner-scoped data layer. Proposals
-are validated and audited, and prompt-injection from retrieved campaign data can never trigger
-a write.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Write-intent detection from the user message only
 The assistant SHALL determine whether the user's own message expresses an intent to create,
@@ -100,16 +90,17 @@ scope from the request.
 - **WHEN** a confirmation carries an operation, path, or scope value
 - **THEN** it is ignored and the registry-declared operation and scope are used
 
-### Requirement: Audit of proposals and confirmed commits
-The assistant SHALL write a redacted audit record when a proposal is generated and when a
-commit is confirmed, reusing the existing audit conventions (no prompt text, PII, or
-secrets). The commit audit SHALL identify the confirming user, the campaign, the action and
-entity, and the outcome.
+## REMOVED Requirements
 
-#### Scenario: Proposal generation is audited
-- **WHEN** a proposal is generated
-- **THEN** a redacted audit record is written capturing the user, campaign, action, entity, and outcome
+### Requirement: Helpful response when neither answer nor proposal applies
+**Reason**: Superseded by the clarification loop in `assistant-validation` and the response
+envelope in `assistant-responses`. A single "here's what I can do" fallback conflated three
+distinct cases — an unsupported action, a missing required value, and an ambiguous target — and
+returned the same prose for each, which the clarification loop and the discriminated envelope now
+handle separately and testably.
 
-#### Scenario: Confirmed commit is audited
-- **WHEN** a confirmed commit completes (success or failure)
-- **THEN** a redacted audit record is written tying the outcome to the confirming user
+**Migration**: An unsupported `(action, entity)` pair now returns the envelope's unsupported-action
+`validation_error`, whose message states what the assistant can do. A missing required value or an
+ambiguous target now returns the `clarification` outcome, naming what is needed rather than
+describing the assistant's capabilities. No stored data or client contract changes beyond rendering
+the envelope.

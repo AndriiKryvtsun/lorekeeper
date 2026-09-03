@@ -36,6 +36,10 @@ export type ProposalAuditRecord = {
   action: string;
   entity: string;
   outcome: AssistantOutcome;
+  // The action registry's declared scope for this write (e.g. "campaign:npc:write"). Recorded so
+  // an audit line says under what authority the write was attempted. Absent when the requested
+  // (action, entity) pair has no registry entry, since then there is no scope.
+  scope?: string;
   // Enrichment source for a tagged create ("srd" | "agent"); omitted otherwise. Non-sensitive.
   source?: string;
   // The created/updated/deleted row id on a successful commit (non-sensitive).

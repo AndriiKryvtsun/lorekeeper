@@ -13,7 +13,10 @@ export function useEnrichmentCommit(campaignId: string) {
   const router = useRouter();
   const utils = api.useUtils();
   return api.assistant.commitProposal.useMutation({
-    onSuccess: async () => {
+    // The mutation resolves with an ActionEnvelope for every outcome, so a refused write is a
+    // resolved value, not a rejection. Only a `success` envelope means anything changed.
+    onSuccess: async (envelope) => {
+      if (envelope.outcome !== "success") return;
       await Promise.all([
         utils.npc.listByCampaign.invalidate({ campaignId }),
         utils.character.listByCampaign.invalidate({ campaignId }),
